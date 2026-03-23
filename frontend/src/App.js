@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Home from './pages/Home';
 import Login from './components/Login';
 import Register from './components/Register';
+import ResetPassword from './components/ResetPassword';
 import ConsumerDashboard from './components/dashboard/ConsumerDashboard';
 import SupplierDashboard from './components/dashboard/SupplierDashboard';
 import AdminDashboard from './components/dashboard/AdminDashboard';
@@ -52,6 +53,7 @@ function App() {
           <Route path="/" element={<PublicHome />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/dashboard/AdminDashboard" element={<AdminDashboard />} />
           <Route path="/dashboard/ConsumerDashboard" element={<ConsumerDashboard />} />
           <Route path="/dashboard/SupplierDashboard" element={<SupplierDashboard />} />
