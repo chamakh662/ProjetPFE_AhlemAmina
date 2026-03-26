@@ -11,14 +11,103 @@ const AdminDashboard = () => {
   const [filterRole, setFilterRole] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
+  const [pendingProducts, setPendingProducts] = useState([]);
+  const [validatedProducts, setValidatedProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productsError, setProductsError] = useState('');
 
-  // 🔴 CHARGER LES UTILISATEURS AU MONTAGE
+  //  CHARGER LES UTILISATEURS AU MONTAGE
   useEffect(() => {
     const storedUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
     setAllUsers(storedUsers);
   }, []);
 
-  // 🔴 FILTRER LES UTILISATEURS
+  const fetchPendingProducts = async () => {
+    setProductsError('');
+    setProductsLoading(true);
+    try {
+      const res = await fetch('/api/produits/pending');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Erreur chargement produits en attente');
+      setPendingProducts(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setProductsError(err.message || 'Erreur');
+    } finally {
+      setProductsLoading(false);
+    }
+  };
+
+  const fetchValidatedProducts = async () => {
+    setProductsError('');
+    setProductsLoading(true);
+    try {
+      const [approvedRes, rejectedRes] = await Promise.all([
+        fetch('/api/produits?status=approved'),
+        fetch('/api/produits?status=rejected')
+      ]);
+      const approved = await approvedRes.json().catch(() => ([]));
+      const rejected = await rejectedRes.json().catch(() => ([]));
+      if (!approvedRes.ok) throw new Error(approved?.message || 'Erreur chargement validations');
+      if (!rejectedRes.ok) throw new Error(rejected?.message || 'Erreur chargement validations');
+      const merged = [...(Array.isArray(approved) ? approved : []), ...(Array.isArray(rejected) ? rejected : [])]
+        .sort((a, b) => new Date(b.validatedAt || b.updatedAt || b.createdAt) - new Date(a.validatedAt || a.updatedAt || a.createdAt));
+      setValidatedProducts(merged);
+    } catch (err) {
+      setProductsError(err.message || 'Erreur');
+    } finally {
+      setProductsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'products') fetchPendingProducts();
+    if (activeTab === 'validations') fetchValidatedProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  const handleApproveProduct = async (productId) => {
+    if (!window.confirm('Accepter ce produit ?')) return;
+    setProductsError('');
+    setProductsLoading(true);
+    try {
+      const res = await fetch(`/api/produits/${productId}/approve`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ validatedBy: user?.id })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Erreur acceptation');
+      await fetchPendingProducts();
+      alert('Produit accepté ✅');
+    } catch (err) {
+      setProductsError(err.message || 'Erreur');
+    } finally {
+      setProductsLoading(false);
+    }
+  };
+
+  const handleRejectProduct = async (productId) => {
+    if (!window.confirm('Rejeter (supprimer) ce produit ?')) return;
+    setProductsError('');
+    setProductsLoading(true);
+    try {
+      const res = await fetch(`/api/produits/${productId}/reject`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ validatedBy: user?.id })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Erreur rejet');
+      await fetchPendingProducts();
+      alert('Produit rejeté ❌');
+    } catch (err) {
+      setProductsError(err.message || 'Erreur');
+    } finally {
+      setProductsLoading(false);
+    }
+  };
+
+  //  FILTRER LES UTILISATEURS
   const filteredUsers = allUsers.filter(u => {
     const matchesSearch = 
       u.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -30,7 +119,7 @@ const AdminDashboard = () => {
     return matchesSearch && matchesRole;
   });
 
-  // 🔴 STATISTIQUES PAR RÔLE
+  //  STATISTIQUES PAR RÔLE
   const statsByRole = {
     total: allUsers.length,
     consommateur: allUsers.filter(u => u.role === 'consommateur').length,
@@ -44,7 +133,7 @@ const AdminDashboard = () => {
     navigate('/');
   };
 
-  // 🔴 SUPPRIMER UN UTILISATEUR
+  //  SUPPRIMER UN UTILISATEUR
   const handleDeleteUser = (userId) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) {
       const updatedUsers = allUsers.filter(u => u.id !== userId);
@@ -441,8 +530,171 @@ const AdminDashboard = () => {
           </div>
         )}
 
+        {/* TAB: PRODUITS (en attente) */}
+        {activeTab === 'products' && (
+          <div style={styles.placeholderContent}>
+            <div style={styles.productsHeader}>
+              <div>
+                <h2 style={{ margin: 0 }}>📦 Mes produits (en attente)</h2>
+                <p style={{ margin: '6px 0 0', color: '#64748b' }}>
+                  Produits soumis par les fournisseurs, à accepter ou rejeter.
+                </p>
+              </div>
+              <button onClick={fetchPendingProducts} style={styles.actionButton}>
+                ↻ Actualiser
+              </button>
+            </div>
+
+            {productsError && <div style={styles.errorBox}>{productsError}</div>}
+
+            {productsLoading ? (
+              <div style={styles.loadingBox}>Chargement…</div>
+            ) : pendingProducts.length === 0 ? (
+              <div style={styles.loadingBox}>Aucun produit en attente.</div>
+            ) : (
+              <div style={styles.productsGrid}>
+                {pendingProducts.map((p) => (
+                  <div key={p._id} style={styles.productCard}>
+                    <div style={styles.productCardTop}>
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <div style={styles.productThumb}>
+                          {p.image ? (
+                            <img src={p.image} alt={p.nom} style={styles.productThumbImg} />
+                          ) : (
+                            <span style={{ fontSize: '20px' }}>📦</span>
+                          )}
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={styles.productTitle}>{p.nom}</div>
+                          <div style={styles.productSub}>
+                            Code-barre: {p.code_barre || '—'} • Origine: {p.origine || '—'}
+                          </div>
+                          <div style={styles.productSub}>
+                            Fournisseur: {p.createdBy ? `${p.createdBy.prenom || ''} ${p.createdBy.nom || ''}`.trim() : '—'}
+                          </div>
+                        </div>
+                      </div>
+                      <span style={styles.pendingBadge}>⏳ En attente</span>
+                    </div>
+
+                    {p.description ? <p style={styles.productDesc}>{p.description}</p> : null}
+
+                    <div style={styles.productMetaRow}>
+                      <div style={styles.metaBlock}>
+                        <div style={styles.metaLabel}>Ingrédients</div>
+                        <div style={styles.metaValue}>
+                          {Array.isArray(p.ingredients) && p.ingredients.length > 0
+                            ? p.ingredients.map((i) => i.nom || '').filter(Boolean).join(', ')
+                            : '—'}
+                        </div>
+                      </div>
+                      <div style={styles.metaBlock}>
+                        <div style={styles.metaLabel}>Points de vente</div>
+                        <div style={styles.metaValue}>
+                          {Array.isArray(p.pointsDeVente) && p.pointsDeVente.length > 0
+                            ? p.pointsDeVente.map((pv) => pv.nom || '').filter(Boolean).join(', ')
+                            : '—'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={styles.productActionsRow}>
+                      <button
+                        onClick={() => handleApproveProduct(p._id)}
+                        style={{ ...styles.btnAction, backgroundColor: '#10b981' }}
+                        disabled={productsLoading}
+                      >
+                        ✅ Accepter
+                      </button>
+                      <button
+                        onClick={() => handleRejectProduct(p._id)}
+                        style={{ ...styles.btnAction, backgroundColor: '#ef4444' }}
+                        disabled={productsLoading}
+                      >
+                        🗑️ Rejeter
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB: VALIDATIONS (acceptés/rejetés) */}
+        {activeTab === 'validations' && (
+          <div style={styles.placeholderContent}>
+            <div style={styles.productsHeader}>
+              <div>
+                <h2 style={{ margin: 0 }}>✅ Validations</h2>
+                <p style={{ margin: '6px 0 0', color: '#64748b' }}>
+                  Historique des produits acceptés et rejetés.
+                </p>
+              </div>
+              <button onClick={fetchValidatedProducts} style={styles.actionButton}>
+                ↻ Actualiser
+              </button>
+            </div>
+
+            {productsError && <div style={styles.errorBox}>{productsError}</div>}
+
+            {productsLoading ? (
+              <div style={styles.loadingBox}>Chargement…</div>
+            ) : validatedProducts.length === 0 ? (
+              <div style={styles.loadingBox}>Aucune validation pour le moment.</div>
+            ) : (
+              <div style={styles.tableContainer}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>Produit</th>
+                      <th style={styles.th}>Statut</th>
+                      <th style={styles.th}>Validé le</th>
+                      <th style={styles.th}>Validé par</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {validatedProducts.map((p) => (
+                      <tr key={p._id} style={styles.tr}>
+                        <td style={styles.td}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ ...styles.productThumb, width: 34, height: 34 }}>
+                              {p.image ? <img src={p.image} alt={p.nom} style={styles.productThumbImg} /> : <span>📦</span>}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 700 }}>{p.nom}</div>
+                              <div style={{ color: '#64748b', fontSize: '0.8rem' }}>
+                                {p.code_barre || '—'} • {p.origine || '—'}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td style={styles.td}>
+                          <span style={{
+                            ...styles.validationBadge,
+                            backgroundColor: p.status === 'approved' ? '#d1fae5' : '#fee2e2',
+                            color: p.status === 'approved' ? '#059669' : '#dc2626'
+                          }}>
+                            {p.status === 'approved' ? '✅ Accepté' : '❌ Rejeté'}
+                          </span>
+                        </td>
+                        <td style={styles.td}>
+                          {p.validatedAt ? new Date(p.validatedAt).toLocaleString('fr-FR') : '—'}
+                        </td>
+                        <td style={styles.td}>
+                          {p.validatedBy ? `${p.validatedBy.prenom || ''} ${p.validatedBy.nom || ''}`.trim() : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* AUTRES TABS (Placeholder) */}
-        {['products', 'validations', 'sales', 'reports'].includes(activeTab) && (
+        {['sales', 'reports'].includes(activeTab) && (
           <div style={styles.placeholderContent}>
             <h2>Gestion : {activeTab}</h2>
             <p>Le contenu de gestion pour {activeTab} s'affichera ici.</p>
@@ -990,6 +1242,94 @@ const styles = {
     borderRadius: '1rem',
     textAlign: 'center',
     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+  },
+  productsHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: '1rem',
+    marginBottom: '1.5rem',
+    textAlign: 'left'
+  },
+  loadingBox: {
+    marginTop: '1rem',
+    padding: '1.25rem',
+    backgroundColor: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: '0.75rem',
+    color: '#64748b',
+    textAlign: 'left'
+  },
+  errorBox: {
+    marginTop: '1rem',
+    padding: '1rem 1.25rem',
+    backgroundColor: '#fee2e2',
+    border: '1px solid #fecaca',
+    borderRadius: '0.75rem',
+    color: '#991b1b',
+    textAlign: 'left'
+  },
+  productsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+    gap: '1rem',
+    marginTop: '1rem',
+    textAlign: 'left'
+  },
+  productCard: {
+    backgroundColor: '#ffffff',
+    border: '1px solid #e2e8f0',
+    borderRadius: '1rem',
+    padding: '1.25rem',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+  },
+  productCardTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' },
+  productThumb: {
+    width: '48px',
+    height: '48px',
+    borderRadius: '0.75rem',
+    border: '1px solid #e2e8f0',
+    backgroundColor: '#f8fafc',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    flexShrink: 0
+  },
+  productThumbImg: { width: '100%', height: '100%', objectFit: 'cover' },
+  productTitle: { fontWeight: '800', color: '#0f172a', fontSize: '1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '360px' },
+  productSub: { color: '#64748b', fontSize: '0.8rem', marginTop: '3px' },
+  pendingBadge: {
+    backgroundColor: '#fef3c7',
+    color: '#92400e',
+    padding: '0.25rem 0.75rem',
+    borderRadius: '999px',
+    fontSize: '0.75rem',
+    fontWeight: '800',
+    whiteSpace: 'nowrap'
+  },
+  productDesc: { marginTop: '0.75rem', color: '#334155', fontSize: '0.9rem', lineHeight: 1.5 },
+  productMetaRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.75rem' },
+  metaBlock: { backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '0.75rem' },
+  metaLabel: { fontSize: '0.7rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em' },
+  metaValue: { marginTop: '0.35rem', color: '#0f172a', fontSize: '0.85rem' },
+  productActionsRow: { display: 'flex', gap: '0.75rem', marginTop: '1rem' },
+  btnAction: {
+    flex: 1,
+    padding: '0.75rem 1rem',
+    color: 'white',
+    border: 'none',
+    borderRadius: '0.75rem',
+    cursor: 'pointer',
+    fontWeight: '800'
+  },
+  validationBadge: {
+    padding: '0.25rem 0.75rem',
+    borderRadius: '999px',
+    fontSize: '0.75rem',
+    fontWeight: '800',
+    whiteSpace: 'nowrap',
+    display: 'inline-block'
   },
   actionButton: {
     marginTop: '1rem',

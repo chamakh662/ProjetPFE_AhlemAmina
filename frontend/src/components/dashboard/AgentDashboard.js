@@ -1,16 +1,38 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';  // ✅ Ajout de useNavigate
 
 const AgentDashboard = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();  // ✅ Initialisation de navigate
   const [activeTab, setActiveTab] = useState('overview');
+  const [profileForm, setProfileForm] = useState({
+    nom: '',
+    prenom: '',
+    email: '',
+    adresse: ''
+  });
+
+  useEffect(() => {
+    if (!user) return;
+    setProfileForm({
+      nom: user.nom || '',
+      prenom: user.prenom || '',
+      email: user.email || '',
+      adresse: user.adresse || ''
+    });
+  }, [user]);
 
   // ✅ Fonction handleLogout déplacée à l'intérieur du composant
   const handleLogout = () => {
     logout();
     navigate('/');  // Redirige vers la page d'accueil
+  };
+
+  const handleProfileUpdate = (e) => {
+    e.preventDefault();
+    updateUser(profileForm);
+    alert('Profil mis à jour avec succès !');
   };
 
   return (
@@ -87,6 +109,59 @@ const AgentDashboard = () => {
               <p>Produits analysés: 150</p>
               <p>Dernière analyse: 05/03/2026</p>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'profile' && (
+          <div>
+            <h2>👤 Mon Profil</h2>
+            <form onSubmit={handleProfileUpdate} style={styles.form}>
+              <div style={styles.formGroup}>
+                <label>Prénom</label>
+                <input
+                  type="text"
+                  style={styles.input}
+                  value={profileForm.prenom}
+                  onChange={(e) => setProfileForm({ ...profileForm, prenom: e.target.value })}
+                  required
+                />
+              </div>
+              <div style={styles.formGroup}>
+                <label>Nom</label>
+                <input
+                  type="text"
+                  style={styles.input}
+                  value={profileForm.nom}
+                  onChange={(e) => setProfileForm({ ...profileForm, nom: e.target.value })}
+                  required
+                />
+              </div>
+              <div style={styles.formGroup}>
+                <label>Email</label>
+                <input
+                  type="email"
+                  style={styles.input}
+                  value={profileForm.email}
+                  onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                  required
+                />
+              </div>
+              {/* L'agent doit pouvoir gérer aussi son adresse */}
+              {user?.role === 'agent' && (
+                <div style={styles.formGroup}>
+                  <label>Adresse</label>
+                  <input
+                    type="text"
+                    style={styles.input}
+                    value={profileForm.adresse}
+                    onChange={(e) => setProfileForm({ ...profileForm, adresse: e.target.value })}
+                  />
+                </div>
+              )}
+              <button type="submit" style={styles.submitButton}>
+                💾 Enregistrer
+              </button>
+            </form>
           </div>
         )}
       </div>

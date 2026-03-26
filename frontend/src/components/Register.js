@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext'; // 🔴 IMPORTER useAuth
+import { useAuth } from '../context/AuthContext'; 
 
 const Register = () => {
-  const { register } = useAuth(); // 🔴 UTILISER le contexte
+  const { register } = useAuth(); 
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({

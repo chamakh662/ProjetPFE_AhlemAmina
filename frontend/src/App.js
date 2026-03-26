@@ -39,7 +39,7 @@ const PublicHome = () => {
   const { user } = useAuth();
   
   if (user?.role === 'administrateur') {
-    return <Navigate to="/dashboard/administrateur" replace />;
+    return <Navigate to="/dashboard/AdminDashboard" replace />;
   }
   
   return <Home />;
@@ -55,6 +55,8 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/dashboard/AdminDashboard" element={<AdminDashboard />} />
+          {/* Alias pour éviter page blanche si on tape /dashboard/administrateur */}
+          <Route path="/dashboard/administrateur" element={<Navigate to="/dashboard/AdminDashboard" replace />} />
           <Route path="/dashboard/ConsumerDashboard" element={<ConsumerDashboard />} />
           <Route path="/dashboard/SupplierDashboard" element={<SupplierDashboard />} />
           <Route path="/dashboard/AgentDashboard" element={<AgentDashboard />} />

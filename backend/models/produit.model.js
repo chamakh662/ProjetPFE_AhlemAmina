@@ -16,6 +16,12 @@ const produitSchema = new mongoose.Schema({
         unique: true,
         sparse: true
     },
+    // Compatibilité avec ancien schéma/index Mongo (codeBarres_1)
+    codeBarres: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
     origine: {
         type: String
     },
@@ -25,6 +31,26 @@ const produitSchema = new mongoose.Schema({
     },
     risque: {
         type: String
+    },
+
+    // 🔴 Workflow de validation (fournisseur -> admin)
+    status: {
+        type: String,
+        enum: ['pending', 'approved', 'rejected'],
+        default: 'pending',
+        index: true
+    },
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        index: true
+    },
+    validatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    },
+    validatedAt: {
+        type: Date
     },
 
     ingredients: [{

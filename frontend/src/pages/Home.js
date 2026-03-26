@@ -682,7 +682,7 @@ const Home = () => {
                   required
                 />
               </div>
-              {user.role === 'consommateur' && (
+              {(user.role === 'consommateur' || user.role === 'agent') && (
                 <div style={styles.formGroup}>
                   <label style={styles.formLabel}>Adresse</label>
                   <input

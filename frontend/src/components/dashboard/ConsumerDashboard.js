@@ -42,7 +42,7 @@ const ConsumerDashboard = () => {
     }
   }, [navigate]);
 
-  // 🔴 Affiche un loader pendant la vérification
+  // Affiche un loader pendant la vérification
   if (isLoading) {
     return (
       <div style={styles.loadingContainer}>
@@ -52,12 +52,12 @@ const ConsumerDashboard = () => {
     );
   }
 
-  // 🔴 Si non autorisé, ne rien afficher (la redirection est déjà faite)
+  // Si non autorisé, ne rien afficher (la redirection est déjà faite)
   if (!isAuthorized) {
     return null;
   }
 
-  // 🔴 RENDU PRINCIPAL : affiche Home avec les fonctionnalités consommateur activées
+  //  RENDU PRINCIPAL : affiche Home avec les fonctionnalités consommateur activées
   console.log('✅ ConsumerDashboard: Rendu de la page Home');
   return <Home />;
 };
@@ -88,7 +88,7 @@ const styles = {
   }
 };
 
-// 🔴 Ajouter l'animation de spin dans le style global
+// Ajouter l'animation de spin dans le style global
 const styleElement = document.createElement('style');
 styleElement.textContent = `
   @keyframes spin {
