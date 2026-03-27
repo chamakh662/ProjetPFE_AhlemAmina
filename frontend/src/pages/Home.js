@@ -25,6 +25,7 @@ const Home = () => {
     adresse: ''
   });
   const [displayProducts, setDisplayProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
   
   // 🔴 ÉTATS POUR LES COMMENTAIRES
   const [comments, setComments] = useState([]);
@@ -81,9 +82,38 @@ const Home = () => {
     }
   ];
 
+  const normalizeProduit = (produit, index = 0) => ({
+    id_produit: produit.id_produit || produit._id || `tmp_${index}`,
+    nom: produit.nom || 'Produit',
+    description: produit.description || '',
+    image: produit.image || '📦',
+    code_barre: produit.code_barre || '',
+    origine: produit.origine || 'N/A',
+    scoreBio: Number.isFinite(produit.scoreBio) ? produit.scoreBio : 0,
+    risque: produit.risque || 'Moyen',
+    ingredients: Array.isArray(produit.ingredients) ? produit.ingredients : [],
+    pointsDeVente: Array.isArray(produit.pointsDeVente) ? produit.pointsDeVente : []
+  });
+
   // 🔴 INITIALISATION
   useEffect(() => {
+    // Valeur par défaut locale (fallback)
+    setAllProducts(produitsExemples);
     setDisplayProducts(produitsExemples);
+
+    // Charger les produits acceptés depuis le backend
+    fetch('/api/produits?status=approved')
+      .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        if (!ok || !Array.isArray(data)) return;
+        const normalized = data.map((p, idx) => normalizeProduit(p, idx));
+        setAllProducts(normalized);
+        setDisplayProducts(normalized);
+      })
+      .catch(() => {
+        // fallback silencieux sur les données exemples
+      });
+
     if (user?.id) {
       const savedFavorites = localStorage.getItem(`favorites_${user.id}`);
       if (savedFavorites) setFavorites(JSON.parse(savedFavorites));
@@ -110,14 +140,14 @@ const Home = () => {
   // 🔴 RECHERCHE PAR NOM
   useEffect(() => {
     if (searchQuery.trim() === '') {
-      setDisplayProducts(produitsExemples);
+      setDisplayProducts(allProducts);
     } else {
-      const filtered = produitsExemples.filter(produit =>
+      const filtered = allProducts.filter(produit =>
         produit.nom.toLowerCase().includes(searchQuery.toLowerCase())
       );
       setDisplayProducts(filtered);
     }
-  }, [searchQuery]);
+  }, [searchQuery, allProducts]);
 
   // 🔴 SAUVEGARDE AUTOMATIQUE
   useEffect(() => {
@@ -493,7 +523,11 @@ const Home = () => {
                   {favorites.map((product) => (
                     <div key={product.id_produit} style={styles.favoriteCard}>
                       <div style={styles.favoriteHeader}>
-                        <span style={styles.favoriteEmoji}>{product.image}</span>
+                        {String(product.image || '').startsWith('data:image') || String(product.image || '').startsWith('http') ? (
+                          <img src={product.image} alt={product.nom} style={styles.favoriteImage} />
+                        ) : (
+                          <span style={styles.favoriteEmoji}>{product.image}</span>
+                        )}
                         <div style={styles.favoriteInfo}>
                           <h3 style={styles.favoriteName}>{product.nom}</h3>
                           <p style={styles.favoriteOrigin}>📍 {product.origine}</p>
@@ -981,7 +1015,11 @@ const Home = () => {
               {displayProducts.map((produit) => (
                 <div key={produit.id_produit} style={styles.productCard}>
                   <div style={styles.productHeader}>
-                    <span style={styles.productEmoji}>{produit.image}</span>
+                    {String(produit.image || '').startsWith('data:image') || String(produit.image || '').startsWith('http') ? (
+                      <img src={produit.image} alt={produit.nom} style={styles.productImage} />
+                    ) : (
+                      <span style={styles.productEmoji}>{produit.image}</span>
+                    )}
                     <span style={styles.bioBadge}>BIO</span>
                   </div>
                   <h3 style={styles.productName}>{produit.nom}</h3>
@@ -1146,6 +1184,7 @@ const styles = {
   favoriteCard: { padding: '1.5rem', backgroundColor: '#f9fafb', borderRadius: '0.75rem', border: '1px solid #e5e7eb', transition: 'transform 0.2s, box-shadow 0.2s' },
   favoriteHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' },
   favoriteEmoji: { fontSize: '2.5rem', marginRight: '1rem' },
+  favoriteImage: { width: '64px', height: '64px', objectFit: 'cover', borderRadius: '0.5rem', marginRight: '1rem', border: '1px solid #e5e7eb' },
   favoriteInfo: { flex: 1 },
   favoriteName: { fontSize: '1.125rem', fontWeight: '600', color: '#1f2937', marginBottom: '0.25rem' },
   favoriteOrigin: { fontSize: '0.875rem', color: '#6b7280' },
@@ -1248,6 +1287,7 @@ const styles = {
   productCard: { backgroundColor: 'white', borderRadius: '1rem', padding: '1.5rem', border: '1px solid #e5e7eb', transition: 'transform 0.2s, box-shadow 0.2s' },
   productHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' },
   productEmoji: { fontSize: '3rem' },
+  productImage: { width: '54px', height: '54px', objectFit: 'cover', borderRadius: '0.5rem', border: '1px solid #e5e7eb' },
   bioBadge: { backgroundColor: '#16a34a', color: 'white', padding: '0.25rem 0.75rem', borderRadius: '2rem', fontSize: '0.75rem', fontWeight: '600' },
   productName: { fontSize: '1.125rem', fontWeight: '600', color: '#1f2937', marginBottom: '0.5rem' },
   productDesc: { fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem', lineHeight: '1.5' },

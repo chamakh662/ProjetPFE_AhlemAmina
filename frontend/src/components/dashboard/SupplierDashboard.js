@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
+const MESSAGES_STORAGE_KEY = 'platform_messages';
+
 const SupplierDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -10,6 +12,12 @@ const SupplierDashboard = () => {
   const [pointsDeVente, setPointsDeVente] = useState([]);
   const [myProducts, setMyProducts] = useState([]);
   const [newPoint, setNewPoint] = useState({ nom: '', adresse: '' });
+  const [messages, setMessages] = useState([]);
+  const [messageForm, setMessageForm] = useState({
+    toRole: 'administrateur',
+    subject: '',
+    content: ''
+  });
   const [productForm, setProductForm] = useState({
     nom: '',
     description: '',
@@ -42,6 +50,14 @@ const SupplierDashboard = () => {
   useEffect(() => {
     fetchMyProducts().catch(() => {});
   }, [user?.id]);
+
+  useEffect(() => {
+    const allMessages = JSON.parse(localStorage.getItem(MESSAGES_STORAGE_KEY) || '[]');
+    const mine = allMessages
+      .filter((m) => m.fromId === user?.id && m.fromRole === 'fournisseur')
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    setMessages(mine);
+  }, [user?.id, activeTab]);
 
   const readFileAsDataUrl = (file) =>
     new Promise((resolve, reject) => {
@@ -129,6 +145,34 @@ const SupplierDashboard = () => {
   const handleLogout = () => {
     logout();
     navigate('/'); // ou navigate('/login') selon votre structure
+  };
+
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if (!user?.id) return;
+    if (!messageForm.subject.trim() || !messageForm.content.trim()) {
+      alert('Veuillez remplir le sujet et le message.');
+      return;
+    }
+
+    const allMessages = JSON.parse(localStorage.getItem(MESSAGES_STORAGE_KEY) || '[]');
+    const newMessage = {
+      id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      fromId: user.id,
+      fromRole: 'fournisseur',
+      fromName: `${user.prenom || ''} ${user.nom || ''}`.trim() || 'Fournisseur',
+      toRole: messageForm.toRole,
+      subject: messageForm.subject.trim(),
+      content: messageForm.content.trim(),
+      createdAt: new Date().toISOString(),
+      read: false
+    };
+
+    const updated = [newMessage, ...allMessages];
+    localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(updated));
+    setMessages([newMessage, ...messages]);
+    setMessageForm({ toRole: messageForm.toRole, subject: '', content: '' });
+    alert('Message envoyé avec succès.');
   };
 
   return (
@@ -334,8 +378,59 @@ const SupplierDashboard = () => {
         {activeTab === 'messages' && (
           <div>
             <h2>Communication avec Admin/Agent</h2>
-            <div style={styles.messageBox}>
-              <p>Aucun message pour le moment.</p>
+            <form onSubmit={handleSendMessage} style={styles.form}>
+              <div style={styles.formGroup}>
+                <label>Destinataire *</label>
+                <select
+                  value={messageForm.toRole}
+                  onChange={(e) => setMessageForm({ ...messageForm, toRole: e.target.value })}
+                  style={styles.input}
+                >
+                  <option value="administrateur">Administrateur</option>
+                  <option value="agent">Agent</option>
+                </select>
+              </div>
+              <div style={styles.formGroup}>
+                <label>Sujet *</label>
+                <input
+                  type="text"
+                  value={messageForm.subject}
+                  onChange={(e) => setMessageForm({ ...messageForm, subject: e.target.value })}
+                  style={styles.input}
+                  required
+                />
+              </div>
+              <div style={styles.formGroup}>
+                <label>Message *</label>
+                <textarea
+                  value={messageForm.content}
+                  onChange={(e) => setMessageForm({ ...messageForm, content: e.target.value })}
+                  style={styles.textarea}
+                  required
+                />
+              </div>
+              <button type="submit" style={styles.submitButton}>Envoyer</button>
+            </form>
+
+            <div style={{ marginTop: '18px' }}>
+              <h3>Messages envoyés</h3>
+              {messages.length === 0 ? (
+                <div style={styles.messageBox}><p>Aucun message envoyé.</p></div>
+              ) : (
+                <div style={styles.messagesList}>
+                  {messages.map((m) => (
+                    <div key={m.id} style={styles.messageCard}>
+                      <div style={styles.messageHeader}>
+                        <strong>{m.subject}</strong>
+                        <span style={styles.messageMeta}>
+                          Vers: {m.toRole === 'administrateur' ? 'Admin' : 'Agent'} • {new Date(m.createdAt).toLocaleString('fr-FR')}
+                        </span>
+                      </div>
+                      <p style={styles.messageText}>{m.content}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -476,7 +571,12 @@ const styles = {
     padding: '20px',
     borderRadius: '8px',
     minHeight: '200px'
-  }
+  },
+  messagesList: { display: 'flex', flexDirection: 'column', gap: '10px' },
+  messageCard: { backgroundColor: 'white', padding: '14px', borderRadius: '8px', border: '1px solid #e5e7eb' },
+  messageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' },
+  messageMeta: { color: '#6b7280', fontSize: '12px' },
+  messageText: { marginTop: '8px', color: '#374151', whiteSpace: 'pre-wrap' }
 };
 
 export default SupplierDashboard;

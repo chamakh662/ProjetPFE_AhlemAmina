@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
+const MESSAGES_STORAGE_KEY = 'platform_messages';
+
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -15,6 +17,7 @@ const AdminDashboard = () => {
   const [validatedProducts, setValidatedProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [productsError, setProductsError] = useState('');
+  const [inboxMessages, setInboxMessages] = useState([]);
 
   //  CHARGER LES UTILISATEURS AU MONTAGE
   useEffect(() => {
@@ -62,6 +65,13 @@ const AdminDashboard = () => {
   useEffect(() => {
     if (activeTab === 'products') fetchPendingProducts();
     if (activeTab === 'validations') fetchValidatedProducts();
+    if (activeTab === 'reports') {
+      const allMessages = JSON.parse(localStorage.getItem(MESSAGES_STORAGE_KEY) || '[]');
+      const inbox = allMessages
+        .filter((m) => m.toRole === 'administrateur')
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setInboxMessages(inbox);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
@@ -693,8 +703,51 @@ const AdminDashboard = () => {
           </div>
         )}
 
+        {/* TAB: MESSAGES ADMIN */}
+        {activeTab === 'reports' && (
+          <div style={styles.placeholderContent}>
+            <div style={styles.productsHeader}>
+              <div>
+                <h2 style={{ margin: 0 }}>📬 Messages reçus</h2>
+                <p style={{ margin: '6px 0 0', color: '#64748b' }}>
+                  Messages envoyés par les fournisseurs.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  const allMessages = JSON.parse(localStorage.getItem(MESSAGES_STORAGE_KEY) || '[]');
+                  const inbox = allMessages
+                    .filter((m) => m.toRole === 'administrateur')
+                    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                  setInboxMessages(inbox);
+                }}
+                style={styles.actionButton}
+              >
+                ↻ Actualiser
+              </button>
+            </div>
+
+            {inboxMessages.length === 0 ? (
+              <div style={styles.loadingBox}>Aucun message reçu pour le moment.</div>
+            ) : (
+              <div style={styles.adminMessagesList}>
+                {inboxMessages.map((m) => (
+                  <div key={m.id} style={styles.adminMessageCard}>
+                    <div style={styles.adminMessageHeader}>
+                      <strong>{m.subject}</strong>
+                      <span style={styles.adminMessageMeta}>{new Date(m.createdAt).toLocaleString('fr-FR')}</span>
+                    </div>
+                    <p style={styles.adminMessageText}>{m.content}</p>
+                    <small style={styles.adminMessageMeta}>De: {m.fromName || 'Fournisseur'}</small>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* AUTRES TABS (Placeholder) */}
-        {['sales', 'reports'].includes(activeTab) && (
+        {['sales'].includes(activeTab) && (
           <div style={styles.placeholderContent}>
             <h2>Gestion : {activeTab}</h2>
             <p>Le contenu de gestion pour {activeTab} s'affichera ici.</p>
@@ -1331,6 +1384,11 @@ const styles = {
     whiteSpace: 'nowrap',
     display: 'inline-block'
   },
+  adminMessagesList: { display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '1rem', textAlign: 'left' },
+  adminMessageCard: { backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '1rem' },
+  adminMessageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' },
+  adminMessageMeta: { color: '#64748b', fontSize: '0.8rem' },
+  adminMessageText: { marginTop: '8px', marginBottom: '8px', color: '#1e293b', whiteSpace: 'pre-wrap' },
   actionButton: {
     marginTop: '1rem',
     padding: '0.75rem 1.5rem',
