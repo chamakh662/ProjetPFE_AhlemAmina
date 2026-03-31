@@ -1,39 +1,45 @@
 const nodemailer = require('nodemailer');
 
-/**
- * Envoie l’email de réinitialisation. Nécessite SMTP_* dans .env.
- */
-async function sendResetPasswordEmail(to, resetUrl) {
-    const host = process.env.SMTP_HOST;
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.SMTP_EMAIL,
+        pass: process.env.SMTP_PASSWORD,
+    },
+});
 
-    if (!host || !user || !pass) {
-        const err = new Error('SMTP_NON_CONFIGURE');
-        err.code = 'SMTP_NON_CONFIGURE';
-        throw err;
-    }
+const sendResetPasswordEmail = async (toEmail, resetUrl) => {
+    const mailOptions = {
+        from: `"BioScan" <${process.env.SMTP_EMAIL}>`,
+        to: toEmail,
+        subject: '🔐 Réinitialisation de votre mot de passe BioScan',
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #16a34a;">🌿 BioScan</h2>
+                <h3>Réinitialisation de votre mot de passe</h3>
+                <p>Vous avez demandé à réinitialiser votre mot de passe.</p>
+                <p>Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe :</p>
+                <a href="${resetUrl}" style="
+                    display: inline-block;
+                    padding: 12px 24px;
+                    background-color: #16a34a;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 8px;
+                    font-weight: bold;
+                    margin: 16px 0;
+                ">Réinitialiser mon mot de passe</a>
+                <p style="color: #6b7280; font-size: 0.875rem;">
+                    Ce lien expire dans <strong>1 heure</strong>.<br/>
+                    Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.
+                </p>
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;"/>
+                <p style="color: #9ca3af; font-size: 0.75rem;">BioScan — Analysez vos produits en un scan</p>
+            </div>
+        `,
+    };
 
-    const transporter = nodemailer.createTransport({
-        host,
-        port: Number(process.env.SMTP_PORT || 587),
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: { user, pass },
-    });
-
-    const from = process.env.SMTP_FROM || user;
-
-    await transporter.sendMail({
-        from,
-        to,
-        subject: 'Réinitialisation de votre mot de passe — GreenCheck',
-        text: `Bonjour,\n\nPour choisir un nouveau mot de passe, ouvrez ce lien dans votre navigateur :\n${resetUrl}\n\nCe lien expire dans 1 heure.\n\nSi vous n’avez pas demandé cette réinitialisation, ignorez cet email.\n`,
-        html: `<p>Bonjour,</p>
-<p>Pour choisir un nouveau mot de passe, cliquez sur le lien ci-dessous :</p>
-<p><a href="${resetUrl}">${resetUrl}</a></p>
-<p>Ce lien expire dans <strong>1 heure</strong>.</p>
-<p>Si vous n’avez pas demandé cette réinitialisation, vous pouvez ignorer cet email.</p>`,
-    });
-}
+    await transporter.sendMail(mailOptions);
+};
 
 module.exports = { sendResetPasswordEmail };

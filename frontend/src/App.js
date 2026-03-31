@@ -6,15 +6,15 @@ import Login from './components/Login';
 import Register from './components/Register';
 import ResetPassword from './components/ResetPassword';
 import ConsumerDashboard from './components/dashboard/ConsumerDashboard';
-import SupplierDashboard from './components/dashboard/SupplierDashboard';
+import SupplierDashboard from './pages/SupplierDashboard';
 import AdminDashboard from './components/dashboard/AdminDashboard';
-import AgentDashboard from './components/dashboard/AgentDashboard';
+import AgentDashboard from './pages/AgentDashboard';
 
 const RoleBasedRedirect = () => {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh'}}>Chargement...</div>;
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Chargement...</div>;
   }
 
   if (!user) {
@@ -37,11 +37,11 @@ const RoleBasedRedirect = () => {
 
 const PublicHome = () => {
   const { user } = useAuth();
-  
+
   if (user?.role === 'administrateur') {
     return <Navigate to="/dashboard/AdminDashboard" replace />;
   }
-  
+
   return <Home />;
 };
 

@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 
 const AuthContext = createContext(null);
 
-const API_AUTH = '/api/auth';
+const API_AUTH = 'http://localhost:3000/api/auth';
 
 export const ROLES = {
   VISITEUR: 'visiteur',
@@ -12,6 +12,7 @@ export const ROLES = {
   ADMINISTRATEUR: 'administrateur'
 };
 
+// Normaliser l'utilisateur stocké
 const normalizeStoredUser = (u) => (u ? { ...u, id: String(u.id) } : null);
 
 export const AuthProvider = ({ children }) => {
@@ -33,6 +34,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  // ---------- LOGIN ----------
   const login = async (email, password, role) => {
     const res = await fetch(`${API_AUTH}/login`, {
       method: 'POST',
@@ -40,8 +42,10 @@ export const AuthProvider = ({ children }) => {
       body: JSON.stringify({
         email: String(email).trim().toLowerCase(),
         password
-      })
+      }),
+      credentials: 'include' // ✅ pour les cookies
     });
+
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const msg =
@@ -56,14 +60,13 @@ export const AuthProvider = ({ children }) => {
       throw new Error('Le rôle sélectionné ne correspond pas à ce compte');
     }
 
-    if (data.token) {
-      localStorage.setItem('token', data.token);
-    }
+    if (data.token) localStorage.setItem('token', data.token);
     setUser(u);
     localStorage.setItem('user', JSON.stringify(u));
     return u;
   };
 
+  // ---------- REGISTER ----------
   const register = async (userData) => {
     const res = await fetch(`${API_AUTH}/register`, {
       method: 'POST',
@@ -74,8 +77,10 @@ export const AuthProvider = ({ children }) => {
         email: String(userData.email).trim().toLowerCase(),
         password: userData.password,
         role: userData.role
-      })
+      }),
+      credentials: 'include' // ✅ pour les cookies
     });
+
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const msg =
@@ -86,20 +91,46 @@ export const AuthProvider = ({ children }) => {
     }
 
     const u = normalizeStoredUser(data.user);
-    if (data.token) {
-      localStorage.setItem('token', data.token);
-    }
+    if (data.token) localStorage.setItem('token', data.token);
     setUser(u);
     localStorage.setItem('user', JSON.stringify(u));
     return u;
   };
 
+  // ---------- FORGOT PASSWORD ----------
+  const forgotPassword = async (email) => {
+    const res = await fetch(`${API_AUTH}/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+      credentials: 'include'
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || 'Erreur lors de la récupération du mot de passe');
+    return data;
+  };
+
+  // ---------- RESET PASSWORD ----------
+  const resetPassword = async (token, newPassword) => {
+    const res = await fetch(`${API_AUTH}/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, newPassword }),
+      credentials: 'include'
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || 'Erreur lors de la réinitialisation du mot de passe');
+    return data;
+  };
+
+  // ---------- LOGOUT ----------
   const logout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     setUser(null);
   };
 
+  // ---------- UPDATE USER ----------
   const updateUser = (updatedData) => {
     if (!user) return null;
     const updatedUser = { ...user, ...updatedData };
@@ -108,6 +139,7 @@ export const AuthProvider = ({ children }) => {
     return updatedUser;
   };
 
+  // ---------- CHECK ROLE ----------
   const hasRole = (allowedRoles) => {
     if (!user) return false;
     return Array.isArray(allowedRoles)
@@ -120,6 +152,8 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     register,
+    forgotPassword,
+    resetPassword,
     logout,
     updateUser,
     hasRole,
