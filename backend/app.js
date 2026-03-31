@@ -3,8 +3,9 @@ const cors = require('cors');
 const app = express();
 
 // JSON parser
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Autorise des payloads plus volumineux (image base64 envoyée depuis le frontend)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ⚡ CORS correctement configuré pour dev
 app.use(
