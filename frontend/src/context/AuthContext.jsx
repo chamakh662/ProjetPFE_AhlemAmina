@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // ---------- LOGIN ----------
-  const login = async (email, password, role) => {
+  const login = async (email, password) => {
     const res = await fetch(`${API_AUTH}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -43,7 +43,7 @@ export const AuthProvider = ({ children }) => {
         email: String(email).trim().toLowerCase(),
         password
       }),
-      credentials: 'include' // ✅ pour les cookies
+      credentials: 'include'
     });
 
     const data = await res.json().catch(() => ({}));
@@ -55,10 +55,8 @@ export const AuthProvider = ({ children }) => {
       throw new Error(msg);
     }
 
+    // ✅ Le rôle est récupéré depuis le backend, pas vérifié côté client
     const u = normalizeStoredUser(data.user);
-    if (u.role.toLowerCase() !== String(role).toLowerCase()) {
-      throw new Error('Le rôle sélectionné ne correspond pas à ce compte');
-    }
 
     if (data.token) localStorage.setItem('token', data.token);
     setUser(u);
@@ -78,7 +76,7 @@ export const AuthProvider = ({ children }) => {
         password: userData.password,
         role: userData.role
       }),
-      credentials: 'include' // ✅ pour les cookies
+      credentials: 'include'
     });
 
     const data = await res.json().catch(() => ({}));
@@ -86,7 +84,7 @@ export const AuthProvider = ({ children }) => {
       const msg =
         data.message === 'Erreur serveur' && data.error
           ? `${data.message} (${data.error})`
-          : data.message || 'Erreur lors de l’inscription';
+          : data.message || "Erreur lors de l'inscription";
       throw new Error(msg);
     }
 

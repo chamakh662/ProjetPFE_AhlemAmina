@@ -1,5 +1,22 @@
 const Produit = require('../models/produit.model');
 const Ingredient = require('../models/ingredient.model');
+const Notification = require('../models/notification.model');
+
+// ─── Envoyer une notification au fournisseur (appel interne Mongoose) ─────────
+const sendNotification = async ({ recipientId, message, productName, agentName }) => {
+    try {
+        if (!recipientId) return;
+        await Notification.create({
+            recipientId,
+            message,
+            productName: productName || '',
+            agentName: agentName || '',
+            read: false
+        });
+    } catch (err) {
+        console.error('Erreur création notification:', err.message);
+    }
+};
 
 const normalizeCodeBarre = (payload) => {
     const code = String(payload?.code_barre || payload?.codeBarres || '').trim();
@@ -182,6 +199,18 @@ exports.updateProduit = async (req, res) => {
             .populate('createdBy', 'nom email')
             .populate('validatedBy', 'nom email');
 
+        // Notification au fournisseur si produit modifié par un agent différent
+        const createdById = populated.createdBy?._id || populated.createdBy;
+        const agentId = req.body.modifiedBy || req.body.validatedBy;
+        if (createdById && String(createdById) !== String(agentId)) {
+            await sendNotification({
+                recipientId: createdById,
+                productName: populated.nom,
+                agentName: req.body.agentName || 'Un agent',
+                message: `✏️ Votre produit "${populated.nom}" a été modifié par l'agent.`
+            });
+        }
+
         res.status(200).json(populated);
 
     } catch (error) {
@@ -208,6 +237,17 @@ exports.approveProduit = async (req, res) => {
             .populate('createdBy', 'nom email')
             .populate('validatedBy', 'nom email');
 
+        // Notification au fournisseur
+        const createdById = populated.createdBy?._id || populated.createdBy;
+        if (createdById) {
+            await sendNotification({
+                recipientId: createdById,
+                productName: populated.nom,
+                agentName: req.body.agentName || 'Un agent',
+                message: `✅ Votre produit "${populated.nom}" a été accepté et publié.`
+            });
+        }
+
         res.status(200).json(populated);
 
     } catch (error) {
@@ -228,6 +268,17 @@ exports.rejectProduit = async (req, res) => {
         produit.validatedAt = new Date();
         await produit.save();
 
+        // Notification au fournisseur
+        const createdById = produit.createdBy?._id || produit.createdBy;
+        if (createdById) {
+            await sendNotification({
+                recipientId: createdById,
+                productName: produit.nom,
+                agentName: req.body.agentName || 'Un agent',
+                message: `❌ Votre produit "${produit.nom}" a été refusé par l'agent.`
+            });
+        }
+
         res.status(200).json({ message: 'Produit rejeté', produit });
 
     } catch (error) {
@@ -238,11 +289,26 @@ exports.rejectProduit = async (req, res) => {
 // ─── Supprimer produit (suppression physique) ────────────────────────────────
 exports.deleteProduit = async (req, res) => {
     try {
-        // ✅ Bug 2 corrigé : suppression physique au lieu de soft reject
-        const produit = await Produit.findByIdAndDelete(req.params.id);
+        // Charger d'abord pour récupérer createdBy avant suppression
+        const produit = await Produit.findById(req.params.id);
 
         if (!produit) {
             return res.status(404).json({ message: 'Produit non trouvé' });
+        }
+
+        const createdById = produit.createdBy?._id || produit.createdBy;
+        const nomProduit = produit.nom;
+
+        await Produit.findByIdAndDelete(req.params.id);
+
+        // Notification au fournisseur
+        if (createdById) {
+            await sendNotification({
+                recipientId: createdById,
+                productName: nomProduit,
+                agentName: req.body.agentName || 'Un agent',
+                message: `🗑️ Votre produit "${nomProduit}" a été supprimé par l'agent.`
+            });
         }
 
         res.status(200).json({ message: 'Produit supprimé' });

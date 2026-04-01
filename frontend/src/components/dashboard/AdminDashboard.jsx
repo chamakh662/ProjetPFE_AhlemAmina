@@ -13,48 +13,26 @@ const AdminDashboard = () => {
   const [filterRole, setFilterRole] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
-  const [pendingProducts, setPendingProducts] = useState([]);
-  const [validatedProducts, setValidatedProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [productsError, setProductsError] = useState('');
   const [inboxMessages, setInboxMessages] = useState([]);
 
-  //  CHARGER LES UTILISATEURS AU MONTAGE
+  // CHARGER LES UTILISATEURS AU MONTAGE
   useEffect(() => {
     const storedUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
     setAllUsers(storedUsers);
   }, []);
 
-  const fetchPendingProducts = async () => {
+  // Charger TOUS les produits (toutes statuts) pour la vue admin
+  const fetchAllProducts = async () => {
     setProductsError('');
     setProductsLoading(true);
     try {
-      const res = await fetch('/api/produits/pending');
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || 'Erreur chargement produits en attente');
-      setPendingProducts(Array.isArray(data) ? data : []);
-    } catch (err) {
-      setProductsError(err.message || 'Erreur');
-    } finally {
-      setProductsLoading(false);
-    }
-  };
-
-  const fetchValidatedProducts = async () => {
-    setProductsError('');
-    setProductsLoading(true);
-    try {
-      const [approvedRes, rejectedRes] = await Promise.all([
-        fetch('/api/produits?status=approved'),
-        fetch('/api/produits?status=rejected')
-      ]);
-      const approved = await approvedRes.json().catch(() => ([]));
-      const rejected = await rejectedRes.json().catch(() => ([]));
-      if (!approvedRes.ok) throw new Error(approved?.message || 'Erreur chargement validations');
-      if (!rejectedRes.ok) throw new Error(rejected?.message || 'Erreur chargement validations');
-      const merged = [...(Array.isArray(approved) ? approved : []), ...(Array.isArray(rejected) ? rejected : [])]
-        .sort((a, b) => new Date(b.validatedAt || b.updatedAt || b.createdAt) - new Date(a.validatedAt || a.updatedAt || a.createdAt));
-      setValidatedProducts(merged);
+      const res = await fetch('/api/produits');
+      const data = await res.json().catch(() => ([]));
+      if (!res.ok) throw new Error(data.message || 'Erreur chargement produits');
+      setAllProducts(Array.isArray(data) ? data : []);
     } catch (err) {
       setProductsError(err.message || 'Erreur');
     } finally {
@@ -63,8 +41,7 @@ const AdminDashboard = () => {
   };
 
   useEffect(() => {
-    if (activeTab === 'products') fetchPendingProducts();
-    if (activeTab === 'validations') fetchValidatedProducts();
+    if (activeTab === 'products') fetchAllProducts();
     if (activeTab === 'reports') {
       const allMessages = JSON.parse(localStorage.getItem(MESSAGES_STORAGE_KEY) || '[]');
       const inbox = allMessages
@@ -75,61 +52,17 @@ const AdminDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  const handleApproveProduct = async (productId) => {
-    if (!window.confirm('Accepter ce produit ?')) return;
-    setProductsError('');
-    setProductsLoading(true);
-    try {
-      const res = await fetch(`/api/produits/${productId}/approve`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ validatedBy: user?.id })
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || 'Erreur acceptation');
-      await fetchPendingProducts();
-      alert('Produit accepté ✅');
-    } catch (err) {
-      setProductsError(err.message || 'Erreur');
-    } finally {
-      setProductsLoading(false);
-    }
-  };
-
-  const handleRejectProduct = async (productId) => {
-    if (!window.confirm('Rejeter (supprimer) ce produit ?')) return;
-    setProductsError('');
-    setProductsLoading(true);
-    try {
-      const res = await fetch(`/api/produits/${productId}/reject`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ validatedBy: user?.id })
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || 'Erreur rejet');
-      await fetchPendingProducts();
-      alert('Produit rejeté ❌');
-    } catch (err) {
-      setProductsError(err.message || 'Erreur');
-    } finally {
-      setProductsLoading(false);
-    }
-  };
-
-  //  FILTRER LES UTILISATEURS
+  // FILTRER LES UTILISATEURS
   const filteredUsers = allUsers.filter(u => {
-    const matchesSearch = 
+    const matchesSearch =
       u.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.prenom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email?.toLowerCase().includes(searchTerm.toLowerCase());
-    
     const matchesRole = filterRole === 'all' || u.role === filterRole;
-    
     return matchesSearch && matchesRole;
   });
 
-  //  STATISTIQUES PAR RÔLE
+  // STATISTIQUES PAR RÔLE
   const statsByRole = {
     total: allUsers.length,
     consommateur: allUsers.filter(u => u.role === 'consommateur').length,
@@ -143,7 +76,7 @@ const AdminDashboard = () => {
     navigate('/');
   };
 
-  //  SUPPRIMER UN UTILISATEUR
+  // SUPPRIMER UN UTILISATEUR
   const handleDeleteUser = (userId) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) {
       const updatedUsers = allUsers.filter(u => u.id !== userId);
@@ -154,7 +87,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // 🔴 BLOQUER/DÉBLOQUER UN UTILISATEUR
+  // BLOQUER/DÉBLOQUER UN UTILISATEUR
   const handleToggleBlock = (userId) => {
     const updatedUsers = allUsers.map(u => {
       if (u.id === userId) {
@@ -164,10 +97,10 @@ const AdminDashboard = () => {
     });
     setAllUsers(updatedUsers);
     localStorage.setItem('registeredUsers', JSON.stringify(updatedUsers));
-    alert('Statut de l\'utilisateur mis à jour !');
+    alert("Statut de l'utilisateur mis à jour !");
   };
 
-  // 🔴 VOIR LES DÉTAILS D'UN UTILISATEUR
+  // VOIR LES DÉTAILS D'UN UTILISATEUR
   const handleViewUser = (user) => {
     setSelectedUser(user);
     setShowUserModal(true);
@@ -187,6 +120,18 @@ const AdminDashboard = () => {
     { label: 'Administrateurs', value: statsByRole.administrateur, color: '#f59e0b', total: statsByRole.total },
   ];
 
+  const getStatusBadgeStyle = (status) => {
+    if (status === 'approved') return { backgroundColor: '#d1fae5', color: '#059669' };
+    if (status === 'rejected') return { backgroundColor: '#fee2e2', color: '#dc2626' };
+    return { backgroundColor: '#fef3c7', color: '#92400e' };
+  };
+
+  const getStatusLabel = (status) => {
+    if (status === 'approved') return '✅ Accepté';
+    if (status === 'rejected') return '❌ Rejeté';
+    return '⏳ En attente';
+  };
+
   return (
     <div style={styles.layout}>
       {/* SIDEBAR */}
@@ -195,44 +140,32 @@ const AdminDashboard = () => {
           <span style={styles.logoIcon}>🛡️</span>
           <h2 style={styles.logoText}>AdminPanel</h2>
         </div>
-        
+
         <nav style={styles.nav}>
-          <NavItem 
-            icon="📊" 
-            label="Vue d'ensemble" 
-            active={activeTab === 'dashboard'} 
-            onClick={() => setActiveTab('dashboard')} 
+          <NavItem
+            icon="📊"
+            label="Vue d'ensemble"
+            active={activeTab === 'dashboard'}
+            onClick={() => setActiveTab('dashboard')}
           />
-          <NavItem 
-            icon="👥" 
-            label="Utilisateurs" 
-            active={activeTab === 'users'} 
+          <NavItem
+            icon="👥"
+            label="Utilisateurs"
+            active={activeTab === 'users'}
             onClick={() => setActiveTab('users')}
             badge={statsByRole.total.toString()}
           />
-          <NavItem 
-            icon="📦" 
-            label="Produits" 
-            active={activeTab === 'products'} 
-            onClick={() => setActiveTab('products')} 
+          <NavItem
+            icon="📦"
+            label="Produits"
+            active={activeTab === 'products'}
+            onClick={() => setActiveTab('products')}
           />
-          <NavItem 
-            icon="✅" 
-            label="Validations" 
-            active={activeTab === 'validations'} 
-            onClick={() => setActiveTab('validations')} 
-          />
-          <NavItem 
-            icon="🏪" 
-            label="Points de vente" 
-            active={activeTab === 'sales'} 
-            onClick={() => setActiveTab('sales')} 
-          />
-          <NavItem 
-            icon="📈" 
-            label="Rapports" 
-            active={activeTab === 'reports'} 
-            onClick={() => setActiveTab('reports')} 
+          <NavItem
+            icon="📈"
+            label="Rapports"
+            active={activeTab === 'reports'}
+            onClick={() => setActiveTab('reports')}
           />
         </nav>
 
@@ -244,12 +177,7 @@ const AdminDashboard = () => {
               <span style={styles.userRoleSmall}>Administrateur</span>
             </div>
           </div>
-          <button 
-            onClick={handleLogout}
-            style={styles.logoutBtnSmall}
-          >
-            🚪
-          </button>
+          <button onClick={handleLogout} style={styles.logoutBtnSmall}>🚪</button>
         </div>
       </aside>
 
@@ -259,25 +187,20 @@ const AdminDashboard = () => {
         <header style={styles.header}>
           <div>
             <h1 style={styles.headerTitle}>
-              {activeTab === 'dashboard' ? 'Tableau de bord' : 
-               activeTab === 'users' ? 'Gestion des Utilisateurs' : 
-               `Gestion : ${activeTab}`}
+              {activeTab === 'dashboard' ? "Tableau de bord" :
+               activeTab === 'users' ? 'Gestion des Utilisateurs' :
+               activeTab === 'products' ? 'Gestion des Produits' :
+               activeTab === 'reports' ? 'Rapports' : ''}
             </h1>
             <p style={styles.headerSubtitle}>
-              {activeTab === 'dashboard' ? 'Bienvenue, voici ce qui se passe aujourd hui.' : 
-               activeTab === 'users' ? 'Gérez tous les utilisateurs de la plateforme.' : 
-               'Le contenu de gestion s\'affichera ici.'}
+              {activeTab === 'dashboard' ? "Bienvenue, voici ce qui se passe aujourd'hui." :
+               activeTab === 'users' ? 'Gérez tous les utilisateurs de la plateforme.' :
+               activeTab === 'products' ? 'Consultez tous les produits de la plateforme.' :
+               activeTab === 'reports' ? 'Messages et rapports reçus.' : ''}
             </p>
           </div>
           <div style={styles.headerActions}>
-            <button style={styles.notificationBtn}>
-              🔔 
-              <span style={styles.badge}>3</span>
-            </button>
-            <button 
-              onClick={handleLogout}
-              style={styles.logoutBtnHeader}
-            >
+            <button onClick={handleLogout} style={styles.logoutBtnHeader}>
               🚪 Déconnexion
             </button>
           </div>
@@ -286,7 +209,6 @@ const AdminDashboard = () => {
         {/* TAB: DASHBOARD */}
         {activeTab === 'dashboard' && (
           <>
-            {/* STATS CARDS */}
             <div style={styles.statsGrid}>
               {stats.map((stat, index) => (
                 <div key={index} style={styles.statCard}>
@@ -300,18 +222,14 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                   <div style={{...styles.statFooter, backgroundColor: stat.color}}>
-                    <span style={styles.statChange}>
-                      {stat.change} {stat.trend === 'up' ? '↗' : '↘'}
-                    </span>
+                    <span style={styles.statChange}>{stat.change} {stat.trend === 'up' ? '↗' : '↘'}</span>
                     <span style={styles.statLabel}>depuis le mois dernier</span>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* CHARTS SECTION */}
             <div style={styles.chartsGrid}>
-              {/* Chart 1: Activity Graph */}
               <div style={styles.chartCard}>
                 <div style={styles.cardHeader}>
                   <h3 style={styles.cardTitle}>Activité des Utilisateurs</h3>
@@ -334,7 +252,6 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
-              {/* Chart 2: Donut Chart */}
               <div style={styles.chartCard}>
                 <div style={styles.cardHeader}>
                   <h3 style={styles.cardTitle}>Répartition des Rôles</h3>
@@ -362,7 +279,6 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
-              {/* Chart 3: Progress Bars */}
               <div style={styles.chartCard}>
                 <div style={styles.cardHeader}>
                   <h3 style={styles.cardTitle}>État du Système</h3>
@@ -375,10 +291,10 @@ const AdminDashboard = () => {
                         <span style={styles.trafficValue}>{item.value}</span>
                       </div>
                       <div style={styles.progressBarBg}>
-                        <div 
+                        <div
                           style={{
-                            ...styles.progressBarFill, 
-                            width: `${statsByRole.total > 0 ? (item.value / statsByRole.total) * 100 : 0}%`, 
+                            ...styles.progressBarFill,
+                            width: `${statsByRole.total > 0 ? (item.value / statsByRole.total) * 100 : 0}%`,
                             backgroundColor: item.color
                           }}
                         ></div>
@@ -394,7 +310,6 @@ const AdminDashboard = () => {
         {/* TAB: UTILISATEURS */}
         {activeTab === 'users' && (
           <div style={styles.usersContainer}>
-            {/* Filtres et Recherche */}
             <div style={styles.usersHeader}>
               <div style={styles.searchBox}>
                 <span style={styles.searchIcon}>🔍</span>
@@ -406,7 +321,6 @@ const AdminDashboard = () => {
                   style={styles.searchInput}
                 />
               </div>
-              
               <div style={styles.filterBox}>
                 <select
                   value={filterRole}
@@ -422,7 +336,6 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            {/* Stats Rapides */}
             <div style={styles.quickStats}>
               <div style={styles.quickStatCard}>
                 <span style={styles.quickStatIcon}>🛒</span>
@@ -454,7 +367,6 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            {/* Tableau des Utilisateurs */}
             <div style={styles.tableContainer}>
               <table style={styles.table}>
                 <thead>
@@ -487,10 +399,7 @@ const AdminDashboard = () => {
                         </td>
                         <td style={styles.td}>{u.email}</td>
                         <td style={styles.td}>
-                          <span style={{
-                            ...styles.roleBadge,
-                            backgroundColor: getRoleColor(u.role)
-                          }}>
+                          <span style={{...styles.roleBadge, backgroundColor: getRoleColor(u.role)}}>
                             {getRoleLabel(u.role)}
                           </span>
                         </td>
@@ -508,27 +417,15 @@ const AdminDashboard = () => {
                         </td>
                         <td style={styles.td}>
                           <div style={styles.actionButtons}>
-                            <button 
-                              onClick={() => handleViewUser(u)}
-                              style={styles.btnView}
-                              title="Voir détails"
-                            >
-                              👁️
-                            </button>
-                            <button 
+                            <button onClick={() => handleViewUser(u)} style={styles.btnView} title="Voir détails">👁️</button>
+                            <button
                               onClick={() => handleToggleBlock(u.id)}
                               style={u.isBlocked ? styles.btnUnblock : styles.btnBlock}
                               title={u.isBlocked ? 'Débloquer' : 'Bloquer'}
                             >
                               {u.isBlocked ? '🔓' : '🔒'}
                             </button>
-                            <button 
-                              onClick={() => handleDeleteUser(u.id)}
-                              style={styles.btnDelete}
-                              title="Supprimer"
-                            >
-                              🗑️
-                            </button>
+                            <button onClick={() => handleDeleteUser(u.id)} style={styles.btnDelete} title="Supprimer">🗑️</button>
                           </div>
                         </td>
                       </tr>
@@ -540,118 +437,25 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* TAB: PRODUITS (en attente) */}
+        {/* TAB: PRODUITS — lecture seule, info fournisseur + agent */}
         {activeTab === 'products' && (
           <div style={styles.placeholderContent}>
             <div style={styles.productsHeader}>
               <div>
-                <h2 style={{ margin: 0 }}>📦 Mes produits (en attente)</h2>
+                <h2 style={{ margin: 0 }}>📦 Tous les produits</h2>
                 <p style={{ margin: '6px 0 0', color: '#64748b' }}>
-                  Produits soumis par les fournisseurs, à accepter ou rejeter.
+                  Vue d'ensemble des produits : fournisseur ajouteur et agent validateur.
                 </p>
               </div>
-              <button onClick={fetchPendingProducts} style={styles.actionButton}>
-                ↻ Actualiser
-              </button>
+              <button onClick={fetchAllProducts} style={styles.actionButton}>↻ Actualiser</button>
             </div>
 
             {productsError && <div style={styles.errorBox}>{productsError}</div>}
 
             {productsLoading ? (
               <div style={styles.loadingBox}>Chargement…</div>
-            ) : pendingProducts.length === 0 ? (
-              <div style={styles.loadingBox}>Aucun produit en attente.</div>
-            ) : (
-              <div style={styles.productsGrid}>
-                {pendingProducts.map((p) => (
-                  <div key={p._id} style={styles.productCard}>
-                    <div style={styles.productCardTop}>
-                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                        <div style={styles.productThumb}>
-                          {p.image ? (
-                            <img src={p.image} alt={p.nom} style={styles.productThumbImg} />
-                          ) : (
-                            <span style={{ fontSize: '20px' }}>📦</span>
-                          )}
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={styles.productTitle}>{p.nom}</div>
-                          <div style={styles.productSub}>
-                            Code-barre: {p.code_barre || '—'} • Origine: {p.origine || '—'}
-                          </div>
-                          <div style={styles.productSub}>
-                            Fournisseur: {p.createdBy ? `${p.createdBy.prenom || ''} ${p.createdBy.nom || ''}`.trim() : '—'}
-                          </div>
-                        </div>
-                      </div>
-                      <span style={styles.pendingBadge}>⏳ En attente</span>
-                    </div>
-
-                    {p.description ? <p style={styles.productDesc}>{p.description}</p> : null}
-
-                    <div style={styles.productMetaRow}>
-                      <div style={styles.metaBlock}>
-                        <div style={styles.metaLabel}>Ingrédients</div>
-                        <div style={styles.metaValue}>
-                          {Array.isArray(p.ingredients) && p.ingredients.length > 0
-                            ? p.ingredients.map((i) => i.nom || '').filter(Boolean).join(', ')
-                            : '—'}
-                        </div>
-                      </div>
-                      <div style={styles.metaBlock}>
-                        <div style={styles.metaLabel}>Points de vente</div>
-                        <div style={styles.metaValue}>
-                          {Array.isArray(p.pointsDeVente) && p.pointsDeVente.length > 0
-                            ? p.pointsDeVente.map((pv) => pv.nom || '').filter(Boolean).join(', ')
-                            : '—'}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={styles.productActionsRow}>
-                      <button
-                        onClick={() => handleApproveProduct(p._id)}
-                        style={{ ...styles.btnAction, backgroundColor: '#10b981' }}
-                        disabled={productsLoading}
-                      >
-                        ✅ Accepter
-                      </button>
-                      <button
-                        onClick={() => handleRejectProduct(p._id)}
-                        style={{ ...styles.btnAction, backgroundColor: '#ef4444' }}
-                        disabled={productsLoading}
-                      >
-                        🗑️ Rejeter
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* TAB: VALIDATIONS (acceptés/rejetés) */}
-        {activeTab === 'validations' && (
-          <div style={styles.placeholderContent}>
-            <div style={styles.productsHeader}>
-              <div>
-                <h2 style={{ margin: 0 }}>✅ Validations</h2>
-                <p style={{ margin: '6px 0 0', color: '#64748b' }}>
-                  Historique des produits acceptés et rejetés.
-                </p>
-              </div>
-              <button onClick={fetchValidatedProducts} style={styles.actionButton}>
-                ↻ Actualiser
-              </button>
-            </div>
-
-            {productsError && <div style={styles.errorBox}>{productsError}</div>}
-
-            {productsLoading ? (
-              <div style={styles.loadingBox}>Chargement…</div>
-            ) : validatedProducts.length === 0 ? (
-              <div style={styles.loadingBox}>Aucune validation pour le moment.</div>
+            ) : allProducts.length === 0 ? (
+              <div style={styles.loadingBox}>Aucun produit trouvé.</div>
             ) : (
               <div style={styles.tableContainer}>
                 <table style={styles.table}>
@@ -659,17 +463,20 @@ const AdminDashboard = () => {
                     <tr>
                       <th style={styles.th}>Produit</th>
                       <th style={styles.th}>Statut</th>
-                      <th style={styles.th}>Validé le</th>
-                      <th style={styles.th}>Validé par</th>
+                      <th style={styles.th}>Fournisseur</th>
+                      <th style={styles.th}>Agent validateur</th>
+                      <th style={styles.th}>Date ajout</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {validatedProducts.map((p) => (
+                    {allProducts.map((p) => (
                       <tr key={p._id} style={styles.tr}>
                         <td style={styles.td}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <div style={{ ...styles.productThumb, width: 34, height: 34 }}>
-                              {p.image ? <img src={p.image} alt={p.nom} style={styles.productThumbImg} /> : <span>📦</span>}
+                              {p.image
+                                ? <img src={p.image} alt={p.nom} style={styles.productThumbImg} />
+                                : <span>📦</span>}
                             </div>
                             <div>
                               <div style={{ fontWeight: 700 }}>{p.nom}</div>
@@ -682,17 +489,23 @@ const AdminDashboard = () => {
                         <td style={styles.td}>
                           <span style={{
                             ...styles.validationBadge,
-                            backgroundColor: p.status === 'approved' ? '#d1fae5' : '#fee2e2',
-                            color: p.status === 'approved' ? '#059669' : '#dc2626'
+                            ...getStatusBadgeStyle(p.status)
                           }}>
-                            {p.status === 'approved' ? '✅ Accepté' : '❌ Rejeté'}
+                            {getStatusLabel(p.status)}
                           </span>
                         </td>
                         <td style={styles.td}>
-                          {p.validatedAt ? new Date(p.validatedAt).toLocaleString('fr-FR') : '—'}
+                          {p.createdBy
+                            ? `${p.createdBy.prenom || ''} ${p.createdBy.nom || ''}`.trim() || '—'
+                            : '—'}
                         </td>
                         <td style={styles.td}>
-                          {p.validatedBy ? `${p.validatedBy.prenom || ''} ${p.validatedBy.nom || ''}`.trim() : '—'}
+                          {p.validatedBy
+                            ? `${p.validatedBy.prenom || ''} ${p.validatedBy.nom || ''}`.trim() || '—'
+                            : <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Non validé</span>}
+                        </td>
+                        <td style={styles.td}>
+                          {p.createdAt ? new Date(p.createdAt).toLocaleDateString('fr-FR') : '—'}
                         </td>
                       </tr>
                     ))}
@@ -703,7 +516,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* TAB: MESSAGES ADMIN */}
+        {/* TAB: RAPPORTS */}
         {activeTab === 'reports' && (
           <div style={styles.placeholderContent}>
             <div style={styles.productsHeader}>
@@ -745,18 +558,9 @@ const AdminDashboard = () => {
             )}
           </div>
         )}
-
-        {/* AUTRES TABS (Placeholder) */}
-        {['sales'].includes(activeTab) && (
-          <div style={styles.placeholderContent}>
-            <h2>Gestion : {activeTab}</h2>
-            <p>Le contenu de gestion pour {activeTab} s'affichera ici.</p>
-            <button style={styles.actionButton}>+ Nouvelle Action</button>
-          </div>
-        )}
       </main>
 
-      {/* 🔴 MODAL DÉTAILS UTILISATEUR */}
+      {/* MODAL DÉTAILS UTILISATEUR */}
       {showUserModal && selectedUser && (
         <div style={styles.modalOverlay} onClick={() => setShowUserModal(false)}>
           <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
@@ -764,7 +568,7 @@ const AdminDashboard = () => {
               <h2 style={styles.modalTitle}>👤 Détails Utilisateur</h2>
               <button onClick={() => setShowUserModal(false)} style={styles.closeBtn}>✕</button>
             </div>
-            
+
             <div style={styles.modalBody}>
               <div style={styles.userDetailHeader}>
                 <div style={styles.userDetailAvatar}>
@@ -824,16 +628,13 @@ const AdminDashboard = () => {
               </div>
 
               <div style={styles.modalActions}>
-                <button 
+                <button
                   onClick={() => handleToggleBlock(selectedUser.id)}
                   style={selectedUser.isBlocked ? styles.modalBtnUnblock : styles.modalBtnBlock}
                 >
                   {selectedUser.isBlocked ? '🔓 Débloquer' : '🔒 Bloquer'}
                 </button>
-                <button 
-                  onClick={() => handleDeleteUser(selectedUser.id)}
-                  style={styles.modalBtnDelete}
-                >
+                <button onClick={() => handleDeleteUser(selectedUser.id)} style={styles.modalBtnDelete}>
                   🗑️ Supprimer
                 </button>
               </div>
@@ -845,7 +646,7 @@ const AdminDashboard = () => {
   );
 };
 
-// 🔴 Helper Functions
+// Helper Functions
 const getRoleColor = (role) => {
   const colors = {
     'consommateur': '#10b981',
@@ -868,7 +669,7 @@ const getRoleLabel = (role) => {
 
 // NavItem Component
 const NavItem = ({ icon, label, active, onClick, badge }) => (
-  <button 
+  <button
     onClick={onClick}
     style={{
       ...styles.navItem,
@@ -882,652 +683,123 @@ const NavItem = ({ icon, label, active, onClick, badge }) => (
   </button>
 );
 
-// 🎨 STYLES
+// STYLES
 const styles = {
-  layout: {
-    display: 'flex',
-    minHeight: '100vh',
-    backgroundColor: '#f3f4f6',
-    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif'
-  },
-  sidebar: {
-    width: '230px',
-    backgroundColor: '#1e293b',
-    color: 'white',
-    display: 'flex',
-    flexDirection: 'column',
-    padding: '1.5rem',
-    position: 'fixed',
-    height: '100vh',
-    left: 0,
-    top: 0,
-    zIndex: 10
-  },
-  logoContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    marginBottom: '2.5rem',
-    paddingLeft: '0.5rem'
-  },
+  layout: { display: 'flex', minHeight: '100vh', backgroundColor: '#f3f4f6', fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif' },
+  sidebar: { width: '230px', backgroundColor: '#1e293b', color: 'white', display: 'flex', flexDirection: 'column', padding: '1.5rem', position: 'fixed', height: '100vh', left: 0, top: 0, zIndex: 10 },
+  logoContainer: { display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2.5rem', paddingLeft: '0.5rem' },
   logoIcon: { fontSize: '1.75rem' },
   logoText: { fontSize: '1.25rem', fontWeight: '700', margin: 0 },
   nav: { flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' },
-  navItem: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0.75rem 1rem',
-    borderRadius: '0.5rem',
-    cursor: 'pointer',
-    border: 'none',
-    color: '#94a3b8',
-    fontWeight: '500',
-    transition: 'all 0.2s',
-    position: 'relative',
-    width: '100%',
-    textAlign: 'left'
-  },
+  navItem: { display: 'flex', alignItems: 'center', padding: '0.75rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', border: 'none', color: '#94a3b8', fontWeight: '500', transition: 'all 0.2s', position: 'relative', width: '100%', textAlign: 'left' },
   navIcon: { marginRight: '0.75rem', fontSize: '1.2rem' },
   navLabel: { flex: 1 },
-  navBadge: {
-    backgroundColor: '#ef4444',
-    color: 'white',
-    fontSize: '0.7rem',
-    padding: '0.15rem 0.5rem',
-    borderRadius: '1rem',
-    fontWeight: '700'
-  },
-  sidebarFooter: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: '1rem',
-    borderTop: '1px solid #334155',
-    marginTop: 'auto'
-  },
+  navBadge: { backgroundColor: '#ef4444', color: 'white', fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '1rem', fontWeight: '700' },
+  sidebarFooter: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '1rem', borderTop: '1px solid #334155', marginTop: 'auto' },
   userInfoSmall: { display: 'flex', alignItems: 'center', gap: '0.75rem' },
-  avatarSmall: {
-    width: '36px', height: '36px',
-    backgroundColor: '#3b82f6',
-    borderRadius: '50%',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontWeight: '700', fontSize: '0.875rem'
-  },
+  avatarSmall: { width: '36px', height: '36px', backgroundColor: '#3b82f6', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '0.875rem' },
   userInfoText: { display: 'flex', flexDirection: 'column' },
   userNameSmall: { fontSize: '0.875rem', fontWeight: '600', color: 'white' },
   userRoleSmall: { fontSize: '0.75rem', color: '#94a3b8' },
-  logoutBtnSmall: {
-    background: 'transparent',
-    border: '1px solid #334155',
-    color: '#94a3b8',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    padding: '0.5rem 0.75rem',
-    borderRadius: '0.375rem',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.375rem',
-    transition: 'all 0.2s'
-  },
-  mainContent: {
-    flex: 1,
-    marginLeft: '260px',
-    padding: '2rem',
-    overflowY: 'auto'
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '2rem'
-  },
+  logoutBtnSmall: { background: 'transparent', border: '1px solid #334155', color: '#94a3b8', cursor: 'pointer', fontSize: '0.875rem', padding: '0.5rem 0.75rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' },
+  mainContent: { flex: 1, marginLeft: '260px', padding: '2rem', overflowY: 'auto' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' },
   headerTitle: { fontSize: '1.5rem', fontWeight: '700', color: '#1e293b', margin: '0 0 0.25rem 0' },
   headerSubtitle: { color: '#64748b', margin: 0 },
   headerActions: { display: 'flex', gap: '1rem', alignItems: 'center' },
-  notificationBtn: {
-    position: 'relative',
-    background: 'white',
-    border: '1px solid #e2e8f0',
-    padding: '0.5rem 0.75rem',
-    borderRadius: '0.5rem',
-    cursor: 'pointer',
-    fontSize: '1.2rem'
-  },
-  badge: {
-    position: 'absolute',
-    top: '-5px',
-    right: '-5px',
-    backgroundColor: '#ef4444',
-    color: 'white',
-    fontSize: '0.65rem',
-    padding: '0.15rem 0.35rem',
-    borderRadius: '50%',
-    border: '2px solid white'
-  },
-  logoutBtnHeader: {
-    backgroundColor: '#e2e8f0',
-    color: '#1e293b',
-    border: 'none',
-    padding: '0.5rem 1rem',
-    borderRadius: '0.5rem',
-    cursor: 'pointer',
-    fontWeight: '600',
-    fontSize: '0.875rem',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.375rem',
-    transition: 'all 0.2s'
-  },
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-    gap: '1.5rem',
-    marginBottom: '2rem'
-  },
-  statCard: {
-    backgroundColor: 'white',
-    borderRadius: '1rem',
-    padding: '1.5rem',
-    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    height: '140px'
-  },
+  notificationBtn: { position: 'relative', background: 'white', border: '1px solid #e2e8f0', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', cursor: 'pointer', fontSize: '1.2rem' },
+  badge: { position: 'absolute', top: '-5px', right: '-5px', backgroundColor: '#ef4444', color: 'white', fontSize: '0.65rem', padding: '0.15rem 0.35rem', borderRadius: '50%', border: '2px solid white' },
+  logoutBtnHeader: { backgroundColor: '#e2e8f0', color: '#1e293b', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' },
+  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2rem' },
+  statCard: { backgroundColor: 'white', borderRadius: '1rem', padding: '1.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '140px' },
   statHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
   statTitle: { color: '#64748b', fontSize: '0.875rem', margin: '0 0 0.5rem 0', fontWeight: '500' },
   statValue: { fontSize: '1.75rem', fontWeight: '700', color: '#1e293b', margin: 0 },
-  statIconBox: {
-    width: '48px', height: '48px',
-    borderRadius: '0.75rem',
-    display: 'flex', alignItems: 'center', justifyContent: 'center'
-  },
-  statFooter: {
-    padding: '0.75rem',
-    borderRadius: '0.5rem',
-    color: 'white',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: '1rem'
-  },
+  statIconBox: { width: '48px', height: '48px', borderRadius: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  statFooter: { padding: '0.75rem', borderRadius: '0.5rem', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' },
   statChange: { fontWeight: '700', fontSize: '0.875rem' },
   statLabel: { fontSize: '0.75rem', opacity: 0.9 },
-  chartsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-    gap: '1.5rem'
-  },
-  chartCard: {
-    backgroundColor: 'white',
-    borderRadius: '1rem',
-    padding: '1.5rem',
-    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
-  },
-  cardHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '1.5rem'
-  },
+  chartsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' },
+  chartCard: { backgroundColor: 'white', borderRadius: '1rem', padding: '1.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' },
+  cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' },
   cardTitle: { fontSize: '1.125rem', fontWeight: '700', color: '#1e293b', margin: 0 },
-  select: {
-    padding: '0.35rem 0.75rem',
-    borderRadius: '0.375rem',
-    border: '1px solid #e2e8f0',
-    backgroundColor: '#f8fafc',
-    color: '#64748b',
-    cursor: 'pointer'
-  },
-  graphContainer: {
-    position: 'relative',
-    height: '200px',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'flex-end'
-  },
+  select: { padding: '0.35rem 0.75rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', color: '#64748b', cursor: 'pointer' },
+  graphContainer: { position: 'relative', height: '200px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' },
   svgGraph: { width: '100%', height: '150px' },
   svgDonut: { transform: 'rotate(-90deg)', width: '100%', height: '100%' },
   donutContainer: { display: 'flex', flexDirection: 'column', alignItems: 'center' },
   donutChart: { position: 'relative', width: '150px', height: '150px' },
-  donutCenter: {
-    position: 'absolute',
-    top: '50%', left: '50%',
-    transform: 'translate(-50%, -50%)',
-    textAlign: 'center'
-  },
+  donutCenter: { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' },
   donutValue: { display: 'block', fontSize: '1.5rem', fontWeight: '700', color: '#1e293b' },
   donutLabel: { fontSize: '0.75rem', color: '#64748b' },
-  legend: { marginTop: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' },
-  legendItem: { display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem', color: '#64748b' },
-  dot: { width: '10px', height: '10px', borderRadius: '50%' },
-  trafficList: { display: 'flex', flexDirection: 'column', gap: '1.25rem' },
+  legend: { marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' },
+  legendItem: { display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: '#475569' },
+  dot: { width: '10px', height: '10px', borderRadius: '50%', flexShrink: 0 },
+  trafficList: { display: 'flex', flexDirection: 'column', gap: '1rem' },
   trafficItem: { display: 'flex', flexDirection: 'column', gap: '0.5rem' },
-  trafficHeader: { display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' },
-  trafficLabel: { color: '#64748b', fontWeight: '500' },
-  trafficValue: { color: '#1e293b', fontWeight: '700' },
-  progressBarBg: {
-    width: '100%', height: '8px',
-    backgroundColor: '#f1f5f9',
-    borderRadius: '4px',
-    overflow: 'hidden'
-  },
-  progressBarFill: { height: '100%', borderRadius: '4px', transition: 'width 1s ease-in-out' },
-  
-  // 🔴 Styles pour la gestion des utilisateurs
-  usersContainer: {
-    backgroundColor: 'white',
-    borderRadius: '1rem',
-    padding: '1.5rem',
-    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
-  },
-  usersHeader: {
-    display: 'flex',
-    gap: '1rem',
-    marginBottom: '1.5rem',
-    flexWrap: 'wrap'
-  },
-  searchBox: {
-    flex: 1,
-    minWidth: '250px',
-    display: 'flex',
-    alignItems: 'center',
-    backgroundColor: '#f8fafc',
-    border: '1px solid #e2e8f0',
-    borderRadius: '0.5rem',
-    padding: '0.5rem 1rem'
-  },
-  searchIcon: { marginRight: '0.5rem', fontSize: '1rem' },
-  searchInput: {
-    flex: 1,
-    border: 'none',
-    outline: 'none',
-    backgroundColor: 'transparent',
-    fontSize: '0.875rem'
-  },
-  filterBox: {
-    minWidth: '200px'
-  },
-  filterSelect: {
-    width: '100%',
-    padding: '0.5rem 1rem',
-    border: '1px solid #e2e8f0',
-    borderRadius: '0.5rem',
-    backgroundColor: 'white',
-    fontSize: '0.875rem',
-    cursor: 'pointer'
-  },
-  quickStats: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-    gap: '1rem',
-    marginBottom: '1.5rem'
-  },
-  quickStatCard: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    padding: '1rem',
-    backgroundColor: '#f8fafc',
-    borderRadius: '0.5rem',
-    border: '1px solid #e2e8f0'
-  },
+  trafficHeader: { display: 'flex', justifyContent: 'space-between' },
+  trafficLabel: { fontSize: '0.875rem', color: '#475569', fontWeight: '500' },
+  trafficValue: { fontSize: '0.875rem', fontWeight: '700', color: '#1e293b' },
+  progressBarBg: { height: '8px', backgroundColor: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' },
+  progressBarFill: { height: '100%', borderRadius: '4px', transition: 'width 0.5s ease' },
+  usersContainer: { display: 'flex', flexDirection: 'column', gap: '1.5rem' },
+  usersHeader: { display: 'flex', gap: '1rem', flexWrap: 'wrap' },
+  searchBox: { display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '0.5rem 1rem', flex: 1, minWidth: '200px' },
+  searchIcon: { fontSize: '1rem', color: '#94a3b8' },
+  searchInput: { border: 'none', outline: 'none', fontSize: '0.875rem', color: '#1e293b', width: '100%', backgroundColor: 'transparent' },
+  filterBox: { display: 'flex', gap: '0.5rem' },
+  filterSelect: { padding: '0.5rem 1rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem', backgroundColor: 'white', color: '#475569', fontSize: '0.875rem', cursor: 'pointer' },
+  quickStats: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' },
+  quickStatCard: { backgroundColor: 'white', borderRadius: '0.75rem', padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' },
   quickStatIcon: { fontSize: '1.5rem' },
-  quickStatValue: {
-    display: 'block',
-    fontSize: '1.25rem',
-    fontWeight: '700',
-    color: '#1e293b'
-  },
-  quickStatLabel: {
-    fontSize: '0.75rem',
-    color: '#64748b'
-  },
-  tableContainer: {
-    overflowX: 'auto'
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse'
-  },
-  th: {
-    textAlign: 'left',
-    padding: '1rem',
-    backgroundColor: '#f8fafc',
-    color: '#64748b',
-    fontSize: '0.75rem',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    borderBottom: '2px solid #e2e8f0'
-  },
-  tr: {
-    borderBottom: '1px solid #e2e8f0',
-    transition: 'background-color 0.2s'
-  },
-  td: {
-    padding: '1rem',
-    fontSize: '0.875rem',
-    color: '#1e293b'
-  },
-  userInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem'
-  },
-  userAvatar: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '50%',
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: '600',
-    fontSize: '0.875rem'
-  },
-  userName: {
-    fontWeight: '600',
-    color: '#1e293b'
-  },
-  roleBadge: {
-    padding: '0.25rem 0.75rem',
-    borderRadius: '1rem',
-    fontSize: '0.75rem',
-    fontWeight: '600',
-    color: 'white'
-  },
-  statusBadge: {
-    padding: '0.25rem 0.75rem',
-    borderRadius: '0.375rem',
-    fontSize: '0.75rem',
-    fontWeight: '500'
-  },
-  actionButtons: {
-    display: 'flex',
-    gap: '0.5rem'
-  },
-  btnView: {
-    padding: '0.375rem 0.5rem',
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.375rem',
-    cursor: 'pointer',
-    fontSize: '0.875rem'
-  },
-  btnBlock: {
-    padding: '0.375rem 0.5rem',
-    backgroundColor: '#f59e0b',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.375rem',
-    cursor: 'pointer',
-    fontSize: '0.875rem'
-  },
-  btnUnblock: {
-    padding: '0.375rem 0.5rem',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.375rem',
-    cursor: 'pointer',
-    fontSize: '0.875rem'
-  },
-  btnDelete: {
-    padding: '0.375rem 0.5rem',
-    backgroundColor: '#ef4444',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.375rem',
-    cursor: 'pointer',
-    fontSize: '0.875rem'
-  },
-  noData: {
-    textAlign: 'center',
-    padding: '3rem',
-    color: '#64748b',
-    fontStyle: 'italic'
-  },
-  placeholderContent: {
-    backgroundColor: 'white',
-    padding: '3rem',
-    borderRadius: '1rem',
-    textAlign: 'center',
-    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
-  },
-  productsHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: '1rem',
-    marginBottom: '1.5rem',
-    textAlign: 'left'
-  },
-  loadingBox: {
-    marginTop: '1rem',
-    padding: '1.25rem',
-    backgroundColor: '#f8fafc',
-    border: '1px solid #e2e8f0',
-    borderRadius: '0.75rem',
-    color: '#64748b',
-    textAlign: 'left'
-  },
-  errorBox: {
-    marginTop: '1rem',
-    padding: '1rem 1.25rem',
-    backgroundColor: '#fee2e2',
-    border: '1px solid #fecaca',
-    borderRadius: '0.75rem',
-    color: '#991b1b',
-    textAlign: 'left'
-  },
-  productsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-    gap: '1rem',
-    marginTop: '1rem',
-    textAlign: 'left'
-  },
-  productCard: {
-    backgroundColor: '#ffffff',
-    border: '1px solid #e2e8f0',
-    borderRadius: '1rem',
-    padding: '1.25rem',
-    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
-  },
-  productCardTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' },
-  productThumb: {
-    width: '48px',
-    height: '48px',
-    borderRadius: '0.75rem',
-    border: '1px solid #e2e8f0',
-    backgroundColor: '#f8fafc',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    flexShrink: 0
-  },
+  quickStatValue: { display: 'block', fontSize: '1.25rem', fontWeight: '700', color: '#1e293b' },
+  quickStatLabel: { display: 'block', fontSize: '0.75rem', color: '#64748b' },
+  tableContainer: { backgroundColor: 'white', borderRadius: '1rem', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflowX: 'auto' },
+  table: { width: '100%', borderCollapse: 'collapse' },
+  th: { padding: '1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' },
+  tr: { borderBottom: '1px solid #f1f5f9' },
+  td: { padding: '1rem', fontSize: '0.875rem', color: '#1e293b', verticalAlign: 'middle' },
+  noData: { padding: '2rem', textAlign: 'center', color: '#94a3b8' },
+  userInfo: { display: 'flex', alignItems: 'center', gap: '0.75rem' },
+  userAvatar: { width: '36px', height: '36px', backgroundColor: '#3b82f6', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '700', fontSize: '0.75rem', flexShrink: 0 },
+  userName: { fontWeight: '600', color: '#1e293b' },
+  roleBadge: { display: 'inline-block', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: '700', color: 'white' },
+  statusBadge: { display: 'inline-block', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: '600' },
+  actionButtons: { display: 'flex', gap: '0.5rem' },
+  btnView: { padding: '0.375rem 0.625rem', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.875rem' },
+  btnBlock: { padding: '0.375rem 0.625rem', backgroundColor: '#fef3c7', border: '1px solid #fde68a', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.875rem' },
+  btnUnblock: { padding: '0.375rem 0.625rem', backgroundColor: '#d1fae5', border: '1px solid #a7f3d0', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.875rem' },
+  btnDelete: { padding: '0.375rem 0.625rem', backgroundColor: '#fee2e2', border: '1px solid #fecaca', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.875rem' },
+  placeholderContent: { backgroundColor: 'white', padding: '2rem', borderRadius: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' },
+  productsHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', marginBottom: '1.5rem', textAlign: 'left' },
+  loadingBox: { marginTop: '1rem', padding: '1.25rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.75rem', color: '#64748b', textAlign: 'left' },
+  errorBox: { marginTop: '1rem', padding: '1rem 1.25rem', backgroundColor: '#fee2e2', border: '1px solid #fecaca', borderRadius: '0.75rem', color: '#991b1b', textAlign: 'left' },
+  productThumb: { width: '48px', height: '48px', borderRadius: '0.75rem', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 },
   productThumbImg: { width: '100%', height: '100%', objectFit: 'cover' },
-  productTitle: { fontWeight: '800', color: '#0f172a', fontSize: '1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '360px' },
-  productSub: { color: '#64748b', fontSize: '0.8rem', marginTop: '3px' },
-  pendingBadge: {
-    backgroundColor: '#fef3c7',
-    color: '#92400e',
-    padding: '0.25rem 0.75rem',
-    borderRadius: '999px',
-    fontSize: '0.75rem',
-    fontWeight: '800',
-    whiteSpace: 'nowrap'
-  },
-  productDesc: { marginTop: '0.75rem', color: '#334155', fontSize: '0.9rem', lineHeight: 1.5 },
-  productMetaRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.75rem' },
-  metaBlock: { backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '0.75rem' },
-  metaLabel: { fontSize: '0.7rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em' },
-  metaValue: { marginTop: '0.35rem', color: '#0f172a', fontSize: '0.85rem' },
-  productActionsRow: { display: 'flex', gap: '0.75rem', marginTop: '1rem' },
-  btnAction: {
-    flex: 1,
-    padding: '0.75rem 1rem',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.75rem',
-    cursor: 'pointer',
-    fontWeight: '800'
-  },
-  validationBadge: {
-    padding: '0.25rem 0.75rem',
-    borderRadius: '999px',
-    fontSize: '0.75rem',
-    fontWeight: '800',
-    whiteSpace: 'nowrap',
-    display: 'inline-block'
-  },
+  validationBadge: { padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: '800', whiteSpace: 'nowrap', display: 'inline-block' },
   adminMessagesList: { display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '1rem', textAlign: 'left' },
   adminMessageCard: { backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '1rem' },
   adminMessageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' },
   adminMessageMeta: { color: '#64748b', fontSize: '0.8rem' },
   adminMessageText: { marginTop: '8px', marginBottom: '8px', color: '#1e293b', whiteSpace: 'pre-wrap' },
-  actionButton: {
-    marginTop: '1rem',
-    padding: '0.75rem 1.5rem',
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.5rem',
-    cursor: 'pointer',
-    fontWeight: '600'
-  },
-  
-  // 🔴 Modal Styles
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderRadius: '1rem',
-    padding: '2rem',
-    width: '90%',
-    maxWidth: '600px',
-    maxHeight: '85vh',
-    overflowY: 'auto'
-  },
-  modalHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '1.5rem'
-  },
-  modalTitle: {
-    fontSize: '1.5rem',
-    fontWeight: '700',
-    color: '#1e293b',
-    margin: 0
-  },
-  closeBtn: {
-    background: 'none',
-    border: 'none',
-    fontSize: '1.5rem',
-    cursor: 'pointer',
-    color: '#64748b'
-  },
-  modalBody: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1.5rem'
-  },
-  userDetailHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '1rem',
-    padding: '1.5rem',
-    backgroundColor: '#f8fafc',
-    borderRadius: '0.5rem'
-  },
-  userDetailAvatar: {
-    width: '60px',
-    height: '60px',
-    borderRadius: '50%',
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: '700',
-    fontSize: '1.25rem'
-  },
-  userDetailName: {
-    fontSize: '1.25rem',
-    fontWeight: '700',
-    color: '#1e293b',
-    margin: 0
-  },
-  detailGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '1rem'
-  },
-  detailItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.25rem'
-  },
-  detailLabel: {
-    fontSize: '0.75rem',
-    color: '#64748b',
-    fontWeight: '500'
-  },
-  detailValue: {
-    fontSize: '0.875rem',
-    color: '#1e293b',
-    margin: 0
-  },
-  modalActions: {
-    display: 'flex',
-    gap: '1rem',
-    paddingTop: '1rem',
-    borderTop: '1px solid #e2e8f0'
-  },
-  modalBtnBlock: {
-    flex: 1,
-    padding: '0.75rem',
-    backgroundColor: '#f59e0b',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.5rem',
-    cursor: 'pointer',
-    fontWeight: '600'
-  },
-  modalBtnUnblock: {
-    flex: 1,
-    padding: '0.75rem',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.5rem',
-    cursor: 'pointer',
-    fontWeight: '600'
-  },
-  modalBtnDelete: {
-    flex: 1,
-    padding: '0.75rem',
-    backgroundColor: '#ef4444',
-    color: 'white',
-    border: 'none',
-    borderRadius: '0.5rem',
-    cursor: 'pointer',
-    fontWeight: '600'
-  }
+  actionButton: { marginTop: '0', padding: '0.75rem 1.5rem', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600' },
+  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+  modalContent: { backgroundColor: 'white', borderRadius: '1rem', padding: '2rem', width: '90%', maxWidth: '600px', maxHeight: '85vh', overflowY: 'auto' },
+  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' },
+  modalTitle: { fontSize: '1.5rem', fontWeight: '700', color: '#1e293b', margin: 0 },
+  closeBtn: { background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#64748b' },
+  modalBody: { display: 'flex', flexDirection: 'column', gap: '1.5rem' },
+  userDetailHeader: { display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.5rem', backgroundColor: '#f8fafc', borderRadius: '0.5rem' },
+  userDetailAvatar: { width: '60px', height: '60px', borderRadius: '50%', backgroundColor: '#3b82f6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '1.25rem' },
+  userDetailName: { fontSize: '1.25rem', fontWeight: '700', color: '#1e293b', margin: 0 },
+  detailGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' },
+  detailItem: { display: 'flex', flexDirection: 'column', gap: '0.25rem' },
+  detailLabel: { fontSize: '0.75rem', color: '#64748b', fontWeight: '500' },
+  detailValue: { fontSize: '0.875rem', color: '#1e293b', margin: 0 },
+  modalActions: { display: 'flex', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' },
+  modalBtnBlock: { flex: 1, padding: '0.75rem', backgroundColor: '#f59e0b', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600' },
+  modalBtnUnblock: { flex: 1, padding: '0.75rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600' },
+  modalBtnDelete: { flex: 1, padding: '0.75rem', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: '600' }
 };
 
 export default AdminDashboard;

@@ -6,7 +6,6 @@ const Login = () => {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('consommateur');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [devResetUrl, setDevResetUrl] = useState('');
@@ -42,7 +41,7 @@ const Login = () => {
         const msg =
           data.message === 'Erreur serveur' && data.error
             ? `${data.message} (${data.error})`
-            : data.message || 'Impossible d’envoyer la demande';
+            : data.message || "Impossible d'envoyer la demande";
         throw new Error(msg);
       }
       setSuccess(
@@ -70,7 +69,7 @@ const Login = () => {
     }
 
     try {
-      const userData = await login(email, password, role);
+      const userData = await login(email, password);
 
       switch (userData.role.toLowerCase()) {
         case 'administrateur':
@@ -106,7 +105,7 @@ const Login = () => {
           {!success ? (
             <form onSubmit={handleForgotPassword} style={styles.form}>
               <p style={styles.infoText}>
-                Entrez l’adresse email de votre compte. Si elle est reconnue, vous recevrez un lien pour choisir un nouveau mot de passe.
+                Entrez l'adresse email de votre compte. Si elle est reconnue, vous recevrez un lien pour choisir un nouveau mot de passe.
               </p>
 
               <div style={styles.formGroup}>
@@ -213,23 +212,6 @@ const Login = () => {
             />
           </div>
 
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Je suis</label>
-            <select
-              value={role}
-              onChange={(e) => {
-                setRole(e.target.value);
-                setError('');
-              }}
-              style={styles.input}
-            >
-              <option value="consommateur">Consommateur</option>
-              <option value="fournisseur">Fournisseur</option>
-              <option value="agent">Agent</option>
-              <option value="administrateur">Administrateur</option>
-            </select>
-          </div>
-
           <p style={styles.forgotPassword}>
             <button
               type="button"
@@ -256,7 +238,7 @@ const Login = () => {
         <p style={styles.text}>
           Pas encore de compte ?{' '}
           <Link to="/register" style={styles.link}>
-            S’inscrire
+            S'inscrire
           </Link>
         </p>
       </div>
