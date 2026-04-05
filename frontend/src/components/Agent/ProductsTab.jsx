@@ -1,21 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import AddProductTab from '../Suplier/AddProductTab'; // ✅ Réutilisation du formulaire fournisseur
-
+import AddProductTab from '../Suplier/AddProductTab';
+ 
 const API_TIMEOUT_MS = 25000;
-
-/** fetch JSON avec délai max pour éviter un « Chargement... » infini si l’API ou Mongo est lent / HS */
+ 
+/** fetch JSON avec délai max + token auth automatique */
 async function fetchJsonWithTimeout(url, options = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), API_TIMEOUT_MS);
+ 
+  const token = localStorage.getItem('token');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(options.headers || {}),
+  };
+ 
   try {
-    const res = await fetch(url, { ...options, signal: ctrl.signal });
+    console.log(`📡 [FETCH] ${options.method || 'GET'} ${url}`);
+    const res = await fetch(url, { ...options, headers, signal: ctrl.signal });
     let data = null;
-    try {
-      data = await res.json();
-    } catch {
-      /* réponse non-JSON */
-    }
+    try { data = await res.json(); } catch { /* réponse non-JSON */ }
+ 
+    console.log(`📦 [RESPONSE] ${url} → status=${res.status}`, data);
+ 
     if (!res.ok) {
       const msg = (data && (data.message || data.error)) || `Erreur ${res.status}`;
       throw new Error(typeof msg === 'string' ? msg : 'Réponse invalide');
@@ -23,14 +31,15 @@ async function fetchJsonWithTimeout(url, options = {}) {
     return data;
   } catch (e) {
     if (e.name === 'AbortError') {
-      throw new Error(`Délai dépassé (${API_TIMEOUT_MS / 1000}s) — vérifiez que le backend tourne et que MongoDB répond.`);
+      throw new Error(`Délai dépassé (${API_TIMEOUT_MS / 1000}s) — vérifiez que le backend tourne.`);
     }
+    console.error(`❌ [FETCH ERROR] ${url}`, e.message);
     throw e;
   } finally {
     clearTimeout(timer);
   }
 }
-
+ 
 // ─── Liste pays ───────────────────────────────────────────────────────────────
 const PAYS = [
   'Afghanistan','Afrique du Sud','Albanie','Algérie','Allemagne','Andorre','Angola',
@@ -56,8 +65,8 @@ const PAYS = [
   'Tunisie','Turquie','Ukraine','Uruguay','Vatican','Venezuela','Vietnam',
   'Yémen','Zambie','Zimbabwe'
 ];
-
-// ✅ Helper : lien Google Maps depuis localisation
+ 
+// ─── Google Maps Link ─────────────────────────────────────────────────────────
 const MapsLink = ({ localisation }) => {
   if (!localisation?.lat || !localisation?.lng) return null;
   const url = `https://www.google.com/maps?q=${localisation.lat},${localisation.lng}`;
@@ -67,8 +76,8 @@ const MapsLink = ({ localisation }) => {
     </a>
   );
 };
-
-// ─── Autocomplete générique ───────────────────────────────────────────────────
+ 
+// ─── Autocomplete ─────────────────────────────────────────────────────────────
 const Autocomplete = ({ value, onChange, placeholder, fetchFn, staticList }) => {
   const [query, setQuery] = useState(value || '');
   const [suggestions, setSuggestions] = useState([]);
@@ -77,9 +86,9 @@ const Autocomplete = ({ value, onChange, placeholder, fetchFn, staticList }) => 
   const [loading, setLoading] = useState(false);
   const wrapperRef = useRef(null);
   const debounceRef = useRef(null);
-
+ 
   useEffect(() => { setQuery(value || ''); }, [value]);
-
+ 
   useEffect(() => {
     const handler = (e) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setOpen(false);
@@ -87,7 +96,7 @@ const Autocomplete = ({ value, onChange, placeholder, fetchFn, staticList }) => 
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-
+ 
   const search = async (val) => {
     if (!val.trim()) { setSuggestions([]); setOpen(false); return; }
     if (staticList) {
@@ -96,25 +105,25 @@ const Autocomplete = ({ value, onChange, placeholder, fetchFn, staticList }) => 
       setOpen(filtered.length > 0);
     } else if (fetchFn) {
       setLoading(true);
-      try { 
+      try {
         const results = await fetchFn(val);
         setSuggestions(results);
         setOpen(results.length > 0);
       } finally { setLoading(false); }
     }
   };
-
+ 
   const handleInput = (e) => {
     const val = e.target.value;
     setQuery(val); onChange(val); setHighlighted(-1);
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => search(val), 350);
   };
-
+ 
   const handleSelect = (item) => {
     setQuery(item.label); onChange(item.value); setSuggestions([]); setOpen(false);
   };
-
+ 
   const handleKeyDown = (e) => {
     if (!open) return;
     if (e.key === 'ArrowDown') { e.preventDefault(); setHighlighted(h => Math.min(h + 1, suggestions.length - 1)); }
@@ -122,7 +131,7 @@ const Autocomplete = ({ value, onChange, placeholder, fetchFn, staticList }) => 
     else if (e.key === 'Enter' && highlighted >= 0) { e.preventDefault(); handleSelect(suggestions[highlighted]); }
     else if (e.key === 'Escape') setOpen(false);
   };
-
+ 
   return (
     <div ref={wrapperRef} style={{ position: 'relative', width: '100%' }}>
       <div style={{ position: 'relative' }}>
@@ -138,12 +147,9 @@ const Autocomplete = ({ value, onChange, placeholder, fetchFn, staticList }) => 
         <ul style={S.dropdown}>
           {suggestions.map((item, i) => {
             const parts = item.label.split(', ');
-            const main = parts[0];
-            const sub = parts.slice(1).join(', ');
             return (
               <li key={i} onMouseDown={() => handleSelect(item)} onMouseEnter={() => setHighlighted(i)}
-                style={{ ...S.dropdownItem, ...(i === highlighted ? S.dropdownItemHL : {}) }}
-              >
+                style={{ ...S.dropdownItem, ...(i === highlighted ? S.dropdownItemHL : {}) }}>
                 {staticList ? (
                   <>
                     <span style={{ fontWeight: 700, color: '#1976D2' }}>{item.label.slice(0, query.length)}</span>
@@ -163,8 +169,8 @@ const Autocomplete = ({ value, onChange, placeholder, fetchFn, staticList }) => 
     </div>
   );
 };
-
-// Nominatim fetch pour adresses en Tunisie
+ 
+// Nominatim fetch Tunisie
 const fetchAdresseTunisie = async (val) => {
   const url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=tn&addressdetails=1&limit=8&q=${encodeURIComponent(val)}`;
   const res = await fetch(url, { headers: { 'Accept-Language': 'fr', 'User-Agent': 'ProductApp/1.0' } });
@@ -174,18 +180,64 @@ const fetchAdresseTunisie = async (val) => {
     return { label, value: label };
   });
 };
-
+ 
+// ─── Helper ID ────────────────────────────────────────────────────────────────
+const resolveId = (val) => {
+  if (!val) return null;
+  if (typeof val === 'object' && val._id) return String(val._id);
+  return String(val);
+};
+ 
 // ─── Notification ─────────────────────────────────────────────────────────────
 const sendNotification = async ({ recipientId, message, productName, agentName }) => {
+  const resolvedRecipientId = resolveId(recipientId);
+ 
+  // ✅ LOGS DEBUG COMPLETS
+  console.log('📨 sendNotification appelé');
+  console.log('📨 recipientId reçu:', recipientId);
+  console.log('📨 recipientId résolu:', resolvedRecipientId);
+ 
+  if (!resolvedRecipientId) {
+    console.warn('⚠️ sendNotification : recipientId manquant, notification non envoyée');
+    return;
+  }
+ 
   try {
-    await fetch('/api/notifications', {
+    const token = localStorage.getItem('token');
+    console.log('🔑 Token présent:', !!token);
+ 
+    const body = {
+      recipientId: resolvedRecipientId,
+      message,
+      productName,
+      agentName,
+      date: new Date().toISOString()
+    };
+    console.log('📨 Body envoyé:', body);
+ 
+    const res = await fetch('/api/notifications', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ recipientId, message, productName, agentName, date: new Date().toISOString() })
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body)
     });
-  } catch (err) { console.error('Erreur notification:', err); }
+ 
+    console.log('📨 sendNotification status:', res.status);
+ 
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      console.error('❌ sendNotification échoué:', err.message || res.status);
+    } else {
+      const result = await res.json().catch(() => ({}));
+      console.log('✅ Notification envoyée avec succès !', result);
+    }
+  } catch (err) {
+    console.error('❌ Erreur notification catch:', err);
+  }
 };
-
+ 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 const Toast = ({ toasts }) => (
   <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -198,7 +250,7 @@ const Toast = ({ toasts }) => (
     ))}
   </div>
 );
-
+ 
 // ─── Modal confirmation ───────────────────────────────────────────────────────
 const ConfirmModal = ({ open, message, onConfirm, onCancel }) => {
   if (!open) return null;
@@ -214,7 +266,7 @@ const ConfirmModal = ({ open, message, onConfirm, onCancel }) => {
     </div>
   );
 };
-
+ 
 // ─── Formulaire produit ───────────────────────────────────────────────────────
 const ProductForm = ({ form, setForm, pointsDeVente, onSubmit, onCancel, submitLabel }) => {
   const readFile = (file) => new Promise((res, rej) => {
@@ -223,7 +275,7 @@ const ProductForm = ({ form, setForm, pointsDeVente, onSubmit, onCancel, submitL
     r.onerror = () => rej(new Error('Erreur lecture'));
     r.readAsDataURL(file);
   });
-
+ 
   return (
     <div style={S.formCard}>
       <div style={S.formGrid}>
@@ -232,17 +284,14 @@ const ProductForm = ({ form, setForm, pointsDeVente, onSubmit, onCancel, submitL
         <input placeholder="Code-barre *" value={form.code_barre}
           onChange={e => setForm({ ...form, code_barre: e.target.value })} style={S.input} />
       </div>
-
       <Autocomplete value={form.origine} onChange={val => setForm({ ...form, origine: val })}
         placeholder="Origine (pays) *" staticList={PAYS} />
-
       <textarea placeholder="Description *" value={form.description}
         onChange={e => setForm({ ...form, description: e.target.value })}
         style={{ ...S.input, minHeight: 80, resize: 'vertical' }} />
       <textarea placeholder="Ingrédients" value={form.ingredients}
         onChange={e => setForm({ ...form, ingredients: e.target.value })}
         style={{ ...S.input, minHeight: 60, resize: 'vertical' }} />
-
       <input type="file" accept="image/*"
         onChange={async e => {
           const file = e.target.files?.[0];
@@ -251,7 +300,6 @@ const ProductForm = ({ form, setForm, pointsDeVente, onSubmit, onCancel, submitL
           catch { alert("Impossible de lire l'image"); }
         }} style={S.input} />
       {form.image && <img src={form.image} alt="Preview" style={{ maxWidth: 180, borderRadius: 8, marginTop: 6 }} />}
-
       <label style={{ fontSize: 13, color: '#555' }}>Points de vente</label>
       <select multiple value={form.pointsDeVente || []}
         onChange={e => {
@@ -262,7 +310,6 @@ const ProductForm = ({ form, setForm, pointsDeVente, onSubmit, onCancel, submitL
           <option key={pv._id} value={pv._id}>{pv.nom} — {pv.adresse}</option>
         ))}
       </select>
-
       <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
         <button onClick={onSubmit} style={S.btnSuccess}>{submitLabel}</button>
         <button onClick={onCancel} style={S.btnSecondary}>Annuler</button>
@@ -270,119 +317,111 @@ const ProductForm = ({ form, setForm, pointsDeVente, onSubmit, onCancel, submitL
     </div>
   );
 };
-
+ 
 // ─── Composant principal ──────────────────────────────────────────────────────
 const ProductsTab = () => {
   const { user } = useAuth();
-
-  // Données
+ 
   const [products, setProducts] = useState([]);
   const [pendingProducts, setPendingProducts] = useState([]);
   const [pointsDeVente, setPointsDeVente] = useState([]);
-
   const [activeTab, setActiveTab] = useState('approved');
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   const [editingProductId, setEditingProductId] = useState(null);
   const [toasts, setToasts] = useState([]);
   const [confirm, setConfirm] = useState({ open: false, message: '', onConfirm: null });
-
-  // Formulaires
+ 
   const emptyForm = { nom: '', description: '', code_barre: '', origine: '', ingredients: '', image: '', pointsDeVente: [] };
   const [productForm, setProductForm] = useState(emptyForm);
   const [newProductForm, setNewProductForm] = useState(emptyForm);
   const [newPoint, setNewPoint] = useState({ nom: '', adresse: '' });
-
-  useEffect(() => { loadAll(); }, []);
-
+ 
+  useEffect(() => {
+    console.log('🚀 ProductsTab monté — appel loadAll()');
+    loadAll();
+  }, []);
+ 
   const loadAll = async () => {
+    console.log('🔄 loadAll() démarré');
     setLoadingProducts(true);
-    const labels = ['Produits validés', 'Produits en attente', 'Points de vente'];
+    setErrorMsg('');
+ 
     try {
-      const settled = await Promise.allSettled([
-        fetchJsonWithTimeout('/api/produits?status=approved'),
+      const [r0, r1, r2] = await Promise.allSettled([
+        fetchJsonWithTimeout('/api/produits'),
         fetchJsonWithTimeout('/api/produits/pending'),
         fetchJsonWithTimeout('/api/pointDeVente'),
       ]);
-      const failed = [];
-      const unwrap = (i, setter) => {
-        const r = settled[i];
-        if (r.status === 'fulfilled' && Array.isArray(r.value)) {
-          setter(r.value);
-          return;
-        }
-        setter([]);
-        if (r.status === 'rejected') failed.push(`${labels[i]} : ${r.reason?.message || r.reason}`);
-        else if (r.status === 'fulfilled') failed.push(`${labels[i]} : réponse inattendue`);
+ 
+      const extractArray = (result) => {
+        if (result.status !== 'fulfilled') return [];
+        const val = result.value;
+        if (Array.isArray(val)) return val;
+        if (val && Array.isArray(val.produits)) return val.produits;
+        if (val && Array.isArray(val.data)) return val.data;
+        return [];
       };
-      unwrap(0, setProducts);
-      unwrap(1, setPendingProducts);
-      unwrap(2, setPointsDeVente);
-      if (failed.length === settled.length) {
-        toast(failed[0] || 'Impossible de charger les données.', 'error');
-      } else if (failed.length > 0) {
-        toast(`Certaines listes n’ont pas pu être chargées. ${failed.join(' · ')}`, 'error');
-      }
+ 
+      const approuves = extractArray(r0);
+      const enAttente = extractArray(r1);
+      const pdv       = extractArray(r2);
+ 
+      setProducts(approuves);
+      setPendingProducts(enAttente);
+      setPointsDeVente(pdv);
+ 
+      const errors = [];
+      if (r0.status === 'rejected') errors.push(`Produits validés : ${r0.reason?.message}`);
+      if (r1.status === 'rejected') errors.push(`En attente : ${r1.reason?.message}`);
+      if (r2.status === 'rejected') errors.push(`Points de vente : ${r2.reason?.message}`);
+      if (errors.length > 0) setErrorMsg(errors.join(' | '));
+ 
+    } catch (err) {
+      console.error('❌ loadAll() erreur globale:', err);
+      setErrorMsg(`Erreur chargement : ${err.message}`);
     } finally {
       setLoadingProducts(false);
     }
   };
-
-  // ── Toast ──
+ 
   const toast = (msg, type = 'success') => {
     const id = Date.now();
     setToasts(t => [...t, { id, msg, type }]);
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3500);
   };
-
-  // ── Confirm dialog ──
+ 
   const askConfirm = (message) => new Promise(resolve => {
-    setConfirm({ open: true, message, onConfirm: () => { setConfirm(c => ({ ...c, open: false })); resolve(true); } });
+    setConfirm({
+      open: true, message,
+      onConfirm: () => { setConfirm(c => ({ ...c, open: false })); resolve(true); }
+    });
   });
-
-  // ── Ajouter produit (par agent) ──
-  const handleAddProduct = async () => {
-    const { nom, description, code_barre, origine } = newProductForm;
-    if (!nom.trim() || !description.trim() || !code_barre.trim() || !origine.trim()) {
-      toast('Veuillez remplir les champs obligatoires (*)', 'error'); return;
-    }
-    try {
-      const res = await fetch('/api/produits', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newProductForm, createdBy: user?.id, status: 'approved' })
-      });
-      if (!res.ok) throw new Error('Erreur ajout produit');
-      setNewProductForm(emptyForm);
-      setActiveTab('approved');
-      await loadAll();
-      toast('Produit ajouté avec succès ✅');
-    } catch (err) { toast(err.message, 'error'); }
-  };
-
-  // ── Accepter produit pending ──
+ 
   const acceptProduct = async (product) => {
     try {
-      const res = await fetch(`/api/produits/${product._id}`, {
+      console.log('🔍 product complet:', product);
+      console.log('🔍 product.createdBy:', product.createdBy);
+ 
+      await fetchJsonWithTimeout(`/api/produits/${product._id}/approve`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'approved', validatedBy: user?.id })
+        body: JSON.stringify({ validatedBy: user?.id || user?._id }),
       });
-      if (!res.ok) throw new Error('Erreur acceptation produit');
-
-      // Notification fournisseur
+ 
       await sendNotification({
         recipientId: product.createdBy,
         productName: product.nom,
-        agentName: user?.name || 'Un agent',
-        message: `✅ Votre produit "${product.nom}" a été accepté et publié par l'agent ${user?.name || ''}.`
+        agentName: user?.name || user?.nom || 'Un agent',
+        message: `✅ Votre produit "${product.nom}" a été accepté par l'agent ${user?.name || user?.nom || ''}.`
       });
-
+ 
       await loadAll();
       toast(`Produit "${product.nom}" accepté ✅`);
-    } catch (err) { toast(err.message, 'error'); }
+    } catch (err) {
+      toast(err.message, 'error');
+    }
   };
-
-  // ── Modifier produit ──
+ 
   const startEdit = (p) => {
     setEditingProductId(p._id);
     setProductForm({
@@ -397,99 +436,100 @@ const ProductsTab = () => {
     });
     setActiveTab('approved');
   };
-
+ 
   const saveEdit = async (product) => {
     try {
-      const res = await fetch(`/api/produits/${product._id}`, {
+      await fetchJsonWithTimeout(`/api/produits/${product._id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...productForm, modifiedBy: user?.id })
+        body: JSON.stringify({ ...productForm, modifiedBy: user?.id || user?._id }),
       });
-      if (!res.ok) throw new Error('Erreur modification produit');
-
-      // Notification si produit créé par un fournisseur (différent de l'agent)
-      if (product.createdBy && product.createdBy !== user?.id) {
+ 
+      const createdById = resolveId(product.createdBy);
+      const currentUserId = user?.id || user?._id;
+      if (createdById && createdById !== String(currentUserId)) {
         await sendNotification({
-          recipientId: product.createdBy, productName: product.nom,
-          agentName: user?.name || 'Un agent',
-          message: `✏️ Votre produit "${product.nom}" a été modifié par l'agent ${user?.name || ''}.`
+          recipientId: product.createdBy,
+          productName: product.nom,
+          agentName: user?.name || user?.nom || 'Un agent',
+          message: `✏️ Votre produit "${product.nom}" a été modifié par l'agent ${user?.name || user?.nom || ''}.`
         });
       }
+ 
       setEditingProductId(null); setProductForm(emptyForm);
       await loadAll();
       toast(`Produit "${product.nom}" modifié ✅`);
     } catch (err) { toast(err.message, 'error'); }
   };
-
-  // ── Supprimer produit ──
+ 
   const deleteProduct = async (product) => {
     const ok = await askConfirm(`Supprimer le produit "${product.nom}" ?`);
     if (!ok) return;
     try {
-      const res = await fetch(`/api/produits/${product._id}`, {
-        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deletedBy: user?.id })
+      await fetchJsonWithTimeout(`/api/produits/${product._id}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ deletedBy: user?.id || user?._id }),
       });
-      if (!res.ok) throw new Error('Erreur suppression produit');
-      if (product.createdBy && product.createdBy !== user?.id) {
+ 
+      const createdById = resolveId(product.createdBy);
+      const currentUserId = user?.id || user?._id;
+      if (createdById && createdById !== String(currentUserId)) {
         await sendNotification({
-          recipientId: product.createdBy, productName: product.nom,
-          agentName: user?.name || 'Un agent',
-          message: `🗑️ Votre produit "${product.nom}" a été supprimé par l'agent ${user?.name || ''}.`
+          recipientId: product.createdBy,
+          productName: product.nom,
+          agentName: user?.name || user?.nom || 'Un agent',
+          message: `🗑️ Votre produit "${product.nom}" a été supprimé par l'agent ${user?.name || user?.nom || ''}.`
         });
       }
+ 
       await loadAll();
       toast(`Produit "${product.nom}" supprimé`, 'info');
     } catch (err) { toast(err.message, 'error'); }
   };
-
-  // ── Refuser produit pending ──
+ 
   const refuseProduct = async (product) => {
     const ok = await askConfirm(`Refuser et supprimer le produit "${product.nom}" ?`);
     if (!ok) return;
     try {
-      const res = await fetch(`/api/produits/${product._id}`, {
-        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deletedBy: user?.id, reason: 'refused' })
+      await fetchJsonWithTimeout(`/api/produits/${product._id}/reject`, {
+        method: 'PUT',
+        body: JSON.stringify({ rejectedBy: user?.id || user?._id }),
       });
-      if (!res.ok) throw new Error('Erreur refus produit');
-
+ 
       await sendNotification({
-        recipientId: product.createdBy, productName: product.nom,
-        agentName: user?.name || 'Un agent',
-        message: `❌ Votre produit "${product.nom}" a été refusé par l'agent ${user?.name || ''}.`
+        recipientId: product.createdBy,
+        productName: product.nom,
+        agentName: user?.name || user?.nom || 'Un agent',
+        message: `❌ Votre produit "${product.nom}" a été refusé par l'agent ${user?.name || user?.nom || ''}.`
       });
+ 
       await loadAll();
       toast(`Produit "${product.nom}" refusé`, 'info');
     } catch (err) { toast(err.message, 'error'); }
   };
-
-  // ── Points de vente ──
+ 
   const handleAddPoint = async () => {
     if (!newPoint.nom.trim() || !newPoint.adresse.trim()) { toast('Nom et adresse requis', 'error'); return; }
     try {
-      const res = await fetch('/api/pointDeVente', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newPoint)
+      await fetchJsonWithTimeout('/api/pointDeVente', {
+        method: 'POST',
+        body: JSON.stringify(newPoint),
       });
-      if (!res.ok) throw new Error('Erreur ajout point de vente');
       setNewPoint({ nom: '', adresse: '' });
       await loadAll();
       toast('Point de vente ajouté ✅');
     } catch (err) { toast(err.message, 'error'); }
   };
-
+ 
   const handleDeletePoint = async (pv) => {
     const ok = await askConfirm(`Supprimer le point de vente "${pv.nom}" ?`);
     if (!ok) return;
     try {
-      const res = await fetch(`/api/pointDeVente/${pv._id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Erreur suppression');
+      await fetchJsonWithTimeout(`/api/pointDeVente/${pv._id}`, { method: 'DELETE' });
       await loadAll();
       toast(`Point "${pv.nom}" supprimé`, 'info');
     } catch (err) { toast(err.message, 'error'); }
   };
-
+ 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div style={S.page}>
@@ -497,16 +537,23 @@ const ProductsTab = () => {
       <Toast toasts={toasts} />
       <ConfirmModal open={confirm.open} message={confirm.message}
         onConfirm={confirm.onConfirm} onCancel={() => setConfirm(c => ({ ...c, open: false }))} />
-
+ 
       <h2 style={S.pageTitle}>📦 Gérer les Produits</h2>
-
+ 
+      {errorMsg && (
+        <div style={S.errorBanner}>
+          ⚠️ {errorMsg}
+          <button onClick={loadAll} style={S.retryBtn}>🔄 Réessayer</button>
+        </div>
+      )}
+ 
       {/* Onglets */}
       <div style={S.tabs}>
         {[
           { key: 'approved', label: `✅ Produits validés (${products.length})` },
-          { key: 'pending', label: `⏳ En attente (${pendingProducts.length})`, badge: pendingProducts.length > 0 },
-          { key: 'add', label: '➕ Nouveau produit' },
-          { key: 'points', label: `📍 Points de vente (${pointsDeVente.length})` },
+          { key: 'pending',  label: `⏳ En attente (${pendingProducts.length})`, badge: pendingProducts.length > 0 },
+          { key: 'add',      label: '➕ Nouveau produit' },
+          { key: 'points',   label: `📍 Points de vente (${pointsDeVente.length})` },
         ].map(tab => (
           <button key={tab.key} onClick={() => { setActiveTab(tab.key); setEditingProductId(null); }}
             style={{ ...S.tab, ...(activeTab === tab.key ? S.tabActive : {}), ...(tab.badge ? S.tabBadge : {}) }}>
@@ -514,104 +561,109 @@ const ProductsTab = () => {
           </button>
         ))}
       </div>
-
-      {loadingProducts ? <div style={S.loading}>Chargement...</div> : (
+ 
+      {loadingProducts ? (
+        <div style={S.loading}>⏳ Chargement des produits...</div>
+      ) : (
         <>
           {/* ── Produits validés ── */}
           {activeTab === 'approved' && (
             <div>
-              {products.length === 0 ? <p style={S.empty}>Aucun produit validé.</p> : products.map(p => (
-                <div key={p._id} style={S.card}>
-                  {editingProductId === p._id ? (
-                    <>
-                      <h4 style={S.cardTitle}>✏️ Modifier : {p.nom}</h4>
-                      <ProductForm form={productForm} setForm={setProductForm} pointsDeVente={pointsDeVente}
-                        onSubmit={() => saveEdit(p)}
-                        onCancel={() => { setEditingProductId(null); setProductForm(emptyForm); }}
-                        submitLabel="💾 Enregistrer" />
-                    </>
-                  ) : (
+              {products.length === 0
+                ? <p style={S.empty}>Aucun produit validé.</p>
+                : products.map(p => (
+                  <div key={p._id} style={S.card}>
+                    {editingProductId === p._id ? (
+                      <>
+                        <h4 style={S.cardTitle}>✏️ Modifier : {p.nom}</h4>
+                        <ProductForm form={productForm} setForm={setProductForm} pointsDeVente={pointsDeVente}
+                          onSubmit={() => saveEdit(p)}
+                          onCancel={() => { setEditingProductId(null); setProductForm(emptyForm); }}
+                          submitLabel="💾 Enregistrer" />
+                      </>
+                    ) : (
+                      <div style={S.cardRow}>
+                        {p.image && <img src={p.image} alt={p.nom} style={S.productImg} />}
+                        <div style={{ flex: 1 }}>
+                          <div style={S.cardHeader}>
+                            <h3 style={S.cardTitle}>{p.nom}</h3>
+                            {p.origine && <span style={S.badge}>{p.origine}</span>}
+                          </div>
+                          <p style={S.cardDesc}>{p.description}</p>
+                          {p.code_barre && <p style={S.meta}>🔖 {p.code_barre}</p>}
+                          {p.pointsDeVente?.length > 0 && (
+                            <p style={S.meta}>
+                              📍 {p.pointsDeVente.map(pv => typeof pv === 'object' ? (pv?.nom || pv?.adresse || '') : String(pv)).filter(Boolean).join(', ')}
+                            </p>
+                          )}
+                          <MapsLink localisation={p.localisation} />
+                        </div>
+                        <div style={S.cardActions}>
+                          <button onClick={() => startEdit(p)} style={S.btnEdit}>✏️ Modifier</button>
+                          <button onClick={() => deleteProduct(p)} style={S.btnDanger}>🗑️ Supprimer</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              }
+            </div>
+          )}
+ 
+          {/* ── En attente ── */}
+          {activeTab === 'pending' && (
+            <div>
+              {pendingProducts.length === 0
+                ? <p style={S.empty}>Aucun produit en attente.</p>
+                : pendingProducts.map(p => (
+                  <div key={p._id} style={{ ...S.card, borderLeft: '4px solid #FF9800' }}>
                     <div style={S.cardRow}>
                       {p.image && <img src={p.image} alt={p.nom} style={S.productImg} />}
                       <div style={{ flex: 1 }}>
                         <div style={S.cardHeader}>
                           <h3 style={S.cardTitle}>{p.nom}</h3>
-                          {p.origine && <span style={S.badge}>{p.origine}</span>}
+                          <span style={{ ...S.badge, backgroundColor: '#FFF3E0', color: '#E65100' }}>En attente</span>
                         </div>
                         <p style={S.cardDesc}>{p.description}</p>
                         {p.code_barre && <p style={S.meta}>🔖 {p.code_barre}</p>}
+                        {p.origine && <p style={S.meta}>🌍 {String(p.origine)}</p>}
+                        {p.ingredients && (
+                          <p style={S.meta}>🧪 {
+                            Array.isArray(p.ingredients)
+                              ? p.ingredients.map(i => typeof i === 'object' ? (i?.nom || '') : String(i)).filter(Boolean).join(', ')
+                              : String(p.ingredients)
+                          }</p>
+                        )}
                         {p.pointsDeVente?.length > 0 && (
                           <p style={S.meta}>
                             📍 {p.pointsDeVente.map(pv => typeof pv === 'object' ? (pv?.nom || pv?.adresse || '') : String(pv)).filter(Boolean).join(', ')}
                           </p>
                         )}
-                        {/* ✅ NOUVEAU : lien Google Maps */}
-                        <MapsLink localisation={p.localisation} />
+                        {p.localisation?.lat && p.localisation?.lng && (
+                          <div style={S.mapsBox}>
+                            <span style={{ fontSize: 12, color: '#555', marginRight: 6 }}>📌 Point de vente :</span>
+                            {p.localisation.adresse && (
+                              <span style={{ fontSize: 12, color: '#333', marginRight: 8 }}>{p.localisation.adresse}</span>
+                            )}
+                            <MapsLink localisation={p.localisation} />
+                          </div>
+                        )}
+                        <p style={{ ...S.meta, color: '#999' }}>
+                          Soumis par : {p.createdByName || (typeof p.createdBy === 'object' ? (p.createdBy?.nom || p.createdBy?.email || 'Fournisseur') : p.createdBy) || 'Fournisseur'}
+                        </p>
                       </div>
                       <div style={S.cardActions}>
-                        <button onClick={() => startEdit(p)} style={S.btnEdit}>✏️ Modifier</button>
-                        <button onClick={() => deleteProduct(p)} style={S.btnDanger}>🗑️ Supprimer</button>
+                        <button onClick={() => acceptProduct(p)} style={S.btnSuccess}>✅ Accepter</button>
+                        <button onClick={() => refuseProduct(p)} style={S.btnDanger}>❌ Refuser</button>
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* ── En attente ── */}
-          {activeTab === 'pending' && (
-            <div>
-              {pendingProducts.length === 0 ? <p style={S.empty}>Aucun produit en attente.</p> : pendingProducts.map(p => (
-                <div key={p._id} style={{ ...S.card, borderLeft: '4px solid #FF9800' }}>
-                  <div style={S.cardRow}>
-                    {p.image && <img src={p.image} alt={p.nom} style={S.productImg} />}
-                    <div style={{ flex: 1 }}>
-                      <div style={S.cardHeader}>
-                        <h3 style={S.cardTitle}>{p.nom}</h3>
-                        <span style={{ ...S.badge, backgroundColor: '#FFF3E0', color: '#E65100' }}>En attente</span>
-                      </div>
-                      <p style={S.cardDesc}>{p.description}</p>
-                      {p.code_barre && <p style={S.meta}>🔖 {p.code_barre}</p>}
-                      {p.origine && <p style={S.meta}>🌍 {String(p.origine)}</p>}
-                      {p.ingredients && (
-                        <p style={S.meta}>🧪 {
-                          Array.isArray(p.ingredients)
-                            ? p.ingredients.map(i => typeof i === 'object' ? (i?.nom || '') : String(i)).filter(Boolean).join(', ')
-                            : String(p.ingredients)
-                        }</p>
-                      )}
-                      {p.pointsDeVente?.length > 0 && (
-                        <p style={S.meta}>
-                          📍 {p.pointsDeVente.map(pv => typeof pv === 'object' ? (pv?.nom || pv?.adresse || '') : String(pv)).filter(Boolean).join(', ')}
-                        </p>
-                      )}
-                      {/* ✅ NOUVEAU : lien Google Maps pour l'agent (aide à vérifier le point de vente) */}
-                      {p.localisation?.lat && p.localisation?.lng && (
-                        <div style={S.mapsBox}>
-                          <span style={{ fontSize: 12, color: '#555', marginRight: 6 }}>📌 Point de vente :</span>
-                          {p.localisation.adresse && (
-                            <span style={{ fontSize: 12, color: '#333', marginRight: 8 }}>{p.localisation.adresse}</span>
-                          )}
-                          <MapsLink localisation={p.localisation} />
-                        </div>
-                      )}
-                      <p style={{ ...S.meta, color: '#999' }}>
-                        Soumis par : {p.createdByName || (typeof p.createdBy === 'object' ? (p.createdBy?.nom || p.createdBy?.email || 'Fournisseur') : p.createdBy) || 'Fournisseur'}
-                      </p>
-                    </div>
-                    <div style={S.cardActions}>
-                      <button onClick={() => acceptProduct(p)} style={S.btnSuccess}>✅ Accepter</button>
-                      <button onClick={() => refuseProduct(p)} style={S.btnDanger}>❌ Refuser</button>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              }
             </div>
           )}
-
+ 
           {/* ── Ajouter produit ── */}
-          {/* ── Ajouter produit : réutilise AddProductTab du fournisseur ── */}
           {activeTab === 'add' && (
             <AddProductTab
               user={user}
@@ -619,7 +671,7 @@ const ProductsTab = () => {
               onSuccess={() => { loadAll(); setActiveTab('approved'); toast('Produit ajouté et publié ✅'); }}
             />
           )}
-
+ 
           {/* ── Points de vente ── */}
           {activeTab === 'points' && (
             <div>
@@ -631,15 +683,14 @@ const ProductsTab = () => {
                   placeholder="Adresse en Tunisie 📍" fetchFn={fetchAdresseTunisie} />
                 <button onClick={handleAddPoint} style={S.btnSuccess}>+ Ajouter</button>
               </div>
-
               <h3 style={{ ...S.sectionTitle, marginTop: 24 }}>Liste des points de vente</h3>
-              {pointsDeVente.length === 0 ? <p style={S.empty}>Aucun point de vente.</p> : (
-                pointsDeVente.map(pv => (
+              {pointsDeVente.length === 0
+                ? <p style={S.empty}>Aucun point de vente.</p>
+                : pointsDeVente.map(pv => (
                   <div key={pv._id} style={S.pointCard}>
                     <div>
                       <strong>{pv.nom}</strong>
                       <p style={{ margin: '2px 0 0', fontSize: 13, color: '#666' }}>📍 {pv.adresse}</p>
-                      {/* ✅ NOUVEAU : lien Maps dans la liste des points de vente */}
                       {pv.lat && pv.lng && (
                         <a href={`https://www.google.com/maps?q=${pv.lat},${pv.lng}`}
                           target="_blank" rel="noreferrer" style={S.mapsLink}>
@@ -650,7 +701,7 @@ const ProductsTab = () => {
                     <button onClick={() => handleDeletePoint(pv)} style={S.btnDangerSm}>🗑️</button>
                   </div>
                 ))
-              )}
+              }
             </div>
           )}
         </>
@@ -658,7 +709,7 @@ const ProductsTab = () => {
     </div>
   );
 };
-
+ 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const S = {
   page: { padding: '8px 0', fontFamily: 'sans-serif' },
@@ -669,6 +720,8 @@ const S = {
   tabBadge: { border: '1px solid #FF9800', color: '#E65100' },
   loading: { padding: 32, textAlign: 'center', color: '#888', fontSize: 15 },
   empty: { color: '#888', fontStyle: 'italic', padding: '16px 0' },
+  errorBanner: { backgroundColor: '#FFF3E0', border: '1px solid #FF9800', borderRadius: 8, padding: '12px 16px', marginBottom: 16, color: '#E65100', fontSize: 14, display: 'flex', alignItems: 'center', gap: 12 },
+  retryBtn: { marginLeft: 'auto', padding: '6px 14px', backgroundColor: '#FF9800', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13 },
   card: { backgroundColor: '#fff', padding: 16, marginBottom: 12, borderRadius: 10, border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' },
   cardRow: { display: 'flex', gap: 14, alignItems: 'flex-start' },
   cardHeader: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 },
@@ -687,7 +740,6 @@ const S = {
   dropdownItemHL: { backgroundColor: '#E3F2FD', color: '#1976D2' },
   pointForm: { display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 10, alignItems: 'start', marginBottom: 12 },
   pointCard: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', padding: '10px 14px', marginBottom: 8, borderRadius: 8, border: '1px solid #e5e7eb' },
-  // ✅ Styles liens Maps
   mapsLink: { display: 'inline-block', color: '#1976D2', fontSize: 12, fontWeight: 600, textDecoration: 'none', marginTop: 4 },
   mapsBox: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 4, marginTop: 4, padding: '6px 10px', backgroundColor: '#E3F2FD', borderRadius: 6 },
   btnSuccess: { backgroundColor: '#4CAF50', color: '#fff', border: 'none', padding: '9px 16px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13 },
@@ -696,5 +748,5 @@ const S = {
   btnDangerSm: { backgroundColor: '#f44336', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 13 },
   btnSecondary: { backgroundColor: '#fff', color: '#555', border: '1px solid #ccc', padding: '9px 16px', borderRadius: 6, cursor: 'pointer', fontWeight: 500, fontSize: 13 },
 };
-
+ 
 export default ProductsTab;

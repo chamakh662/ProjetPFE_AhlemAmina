@@ -1,22 +1,38 @@
 const Produit = require('../models/produit.model');
 const Ingredient = require('../models/ingredient.model');
 const Notification = require('../models/notification.model');
+const { emitNotification } = require('../socket'); // ← NOUVEAU
 
+// ─── Helper : crée la notif en DB ET l'envoie en temps réel ──────────────────
 const sendNotification = async ({ recipientId, message, productName, agentName }) => {
     try {
         if (!recipientId) return;
-        await Notification.create({
+
+        // 1. Persister en MongoDB (déjà existant)
+        const notif = await Notification.create({
             recipientId,
             message,
             productName: productName || '',
             agentName: agentName || '',
             read: false
         });
+
+        // 2. Émettre en temps réel via Socket.io (NOUVEAU)
+        emitNotification(String(recipientId), {
+            _id: notif._id,
+            message,
+            productName: productName || '',
+            agentName: agentName || '',
+            read: false,
+            createdAt: notif.createdAt,
+        });
+
     } catch (err) {
         console.error('Erreur création notification:', err.message);
     }
 };
 
+// ─── (Helpers inchangés) ──────────────────────────────────────────────────────
 const normalizeCodeBarre = (payload) => {
     const code = String(payload?.code_barre || payload?.codeBarres || '').trim();
     return code;
@@ -42,13 +58,12 @@ const resolveIngredientIds = async (ingredientNames) => {
     return docs.map((d) => d._id);
 };
 
-// ✅ Helper : normalise la localisation reçue du body
 const normalizeLocalisation = (body) => {
     const loc = body.localisation || {};
     return {
         adresse: String(loc.adresse || '').trim(),
-        lat:     loc.lat !== undefined && loc.lat !== '' ? Number(loc.lat) : null,
-        lng:     loc.lng !== undefined && loc.lng !== '' ? Number(loc.lng) : null
+        lat: loc.lat !== undefined && loc.lat !== '' ? Number(loc.lat) : null,
+        lng: loc.lng !== undefined && loc.lng !== '' ? Number(loc.lng) : null
     };
 };
 
@@ -60,10 +75,9 @@ exports.createProduit = async (req, res) => {
 
         const produit = new Produit({
             ...req.body,
-            code_barre:   codeBarre || undefined,
-            codeBarres:   codeBarre || undefined,
-            ingredients:  ingredientIds,
-            // ✅ NOUVEAU
+            code_barre: codeBarre || undefined,
+            codeBarres: codeBarre || undefined,
+            ingredients: ingredientIds,
             localisation: normalizeLocalisation(req.body)
         });
 
@@ -86,17 +100,16 @@ exports.createPendingProduit = async (req, res) => {
         const codeBarre = normalizeCodeBarre(req.body);
 
         const produit = new Produit({
-            nom:          req.body.nom,
-            description:  req.body.description,
-            image:        req.body.image,
-            code_barre:   codeBarre || undefined,
-            codeBarres:   codeBarre || undefined,
-            origine:      req.body.origine,
-            ingredients:  ingredientIds,
+            nom: req.body.nom,
+            description: req.body.description,
+            image: req.body.image,
+            code_barre: codeBarre || undefined,
+            codeBarres: codeBarre || undefined,
+            origine: req.body.origine,
+            ingredients: ingredientIds,
             pointsDeVente: Array.isArray(req.body.pointsDeVente) ? req.body.pointsDeVente : [],
-            createdBy:    req.body.createdBy,
-            status:       'pending',
-            // ✅ NOUVEAU
+            createdBy: req.body.createdBy,
+            status: 'pending',
             localisation: normalizeLocalisation(req.body)
         });
 
@@ -116,36 +129,41 @@ exports.createPendingProduit = async (req, res) => {
 exports.getAllProduits = async (req, res) => {
     try {
         const filter = {};
-        if (req.query.status)    filter.status    = req.query.status;
+        if (req.query.status) filter.status = req.query.status;
         if (req.query.createdBy) filter.createdBy = req.query.createdBy;
 
+        // Ne pas charger `image` en liste : certains docs ont des base64 énormes (>200ko) et
+        // bloquent la réponse HTTP/curl pendant des dizaines de secondes via Atlas.
         const produits = await Produit.find(filter)
-            .populate('ingredients', 'nom description estBio')
-            .populate('pointsDeVente', 'nom adresse')
-            .populate('createdBy', 'nom email')
-            .populate('validatedBy', 'nom email');
+            .select('-image')
+            .populate({ path: 'ingredients', select: 'nom description estBio', options: { maxTimeMS: 8000 } })
+            .populate({ path: 'pointsDeVente', select: 'nom adresse', options: { maxTimeMS: 8000 } })
+            .lean()
+            .maxTimeMS(8000);
 
         res.status(200).json(produits);
     } catch (error) {
+        console.error('getAllProduits error:', error.message);
         res.status(500).json({ message: error.message });
     }
 };
 
-// ─── Récupérer les produits en attente ───────────────────────────────────────
 exports.getPendingProduits = async (req, res) => {
     try {
         const produits = await Produit.find({ status: 'pending' })
-            .populate('ingredients', 'nom description estBio')
-            .populate('pointsDeVente', 'nom adresse')
-            .populate('createdBy', 'nom email')
+            .select('-image')
+            .populate({ path: 'ingredients', select: 'nom description estBio', options: { maxTimeMS: 8000 } })
+            .populate({ path: 'pointsDeVente', select: 'nom adresse', options: { maxTimeMS: 8000 } })
+            .lean()
+            .maxTimeMS(8000)
             .sort({ createdAt: -1 });
 
         res.status(200).json(produits);
     } catch (error) {
+        console.error('getPendingProduits error:', error.message);
         res.status(500).json({ message: error.message });
     }
 };
-
 // ─── Récupérer produit par ID ─────────────────────────────────────────────────
 exports.getProduitById = async (req, res) => {
     try {
@@ -172,7 +190,6 @@ exports.updateProduit = async (req, res) => {
             ...req.body,
             ...(codeBarre ? { code_barre: codeBarre, codeBarres: codeBarre } : {}),
             ...(ingredientIds.length ? { ingredients: ingredientIds } : {}),
-            // ✅ NOUVEAU : mettre à jour la localisation si présente
             ...(req.body.localisation ? { localisation: normalizeLocalisation(req.body) } : {})
         };
 
@@ -208,7 +225,7 @@ exports.approveProduit = async (req, res) => {
         const produit = await Produit.findById(req.params.id);
         if (!produit) return res.status(404).json({ message: 'Produit non trouvé' });
 
-        produit.status      = 'approved';
+        produit.status = 'approved';
         produit.validatedBy = req.body.validatedBy || null;
         produit.validatedAt = new Date();
         await produit.save();
@@ -241,7 +258,7 @@ exports.rejectProduit = async (req, res) => {
         const produit = await Produit.findById(req.params.id);
         if (!produit) return res.status(404).json({ message: 'Produit non trouvé' });
 
-        produit.status      = 'rejected';
+        produit.status = 'rejected';
         produit.validatedBy = req.body.validatedBy || null;
         produit.validatedAt = new Date();
         await produit.save();
@@ -269,7 +286,7 @@ exports.deleteProduit = async (req, res) => {
         if (!produit) return res.status(404).json({ message: 'Produit non trouvé' });
 
         const createdById = produit.createdBy?._id || produit.createdBy;
-        const nomProduit  = produit.nom;
+        const nomProduit = produit.nom;
 
         await Produit.findByIdAndDelete(req.params.id);
 

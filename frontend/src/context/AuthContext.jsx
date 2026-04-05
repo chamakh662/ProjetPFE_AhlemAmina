@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 
 const AuthContext = createContext(null);
 
-const API_AUTH = 'http://localhost:3000/api/auth';
+const API_AUTH = 'http://localhost:5000/api/auth';
 
 export const ROLES = {
   VISITEUR: 'visiteur',

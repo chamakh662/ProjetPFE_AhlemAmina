@@ -39,6 +39,7 @@ app.use('/api/analyses', require('./routes/analyse.routes'));
 app.use('/api/commentaires', require('./routes/commentaire.routes'));
 app.use('/api/historiques', require('./routes/historique.routes'));
 app.use('/api/favoris', require('./routes/favoris.routes'));
+app.use('/api/notifications', require('./routes/notification.routes')); 
 
 // Middleware global d'erreurs
 app.use((err, req, res, next) => {

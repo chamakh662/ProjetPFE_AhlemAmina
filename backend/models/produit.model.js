@@ -35,8 +35,8 @@ const produitSchema = new mongoose.Schema({
     // ✅ NOUVEAU : Localisation du point de vente principal
     localisation: {
         adresse: { type: String, default: '' },
-        lat:     { type: Number, default: null },
-        lng:     { type: Number, default: null }
+        lat: { type: Number, default: null },
+        lng: { type: Number, default: null }
     },
 
     status: {
@@ -69,5 +69,6 @@ const produitSchema = new mongoose.Schema({
     }]
 
 }, { timestamps: true });
+produitSchema.set('autoIndex', false);
 
 module.exports = mongoose.model('Produit', produitSchema);

@@ -9,6 +9,10 @@ router.get('/', notificationController.getNotifications);
 // POST /api/notifications                         → créer une notification
 router.post('/', notificationController.createNotification);
 
+// ✅ CORRECTION CRITIQUE : /read-all DOIT être AVANT /:id/read
+// Sinon Express interprète "read-all" comme un :id et n'appelle jamais markAllAsRead
+router.put('/read-all', notificationController.markAllAsRead);
+
 // PUT  /api/notifications/:id/read               → marquer une notif comme lue
 router.put('/:id/read', notificationController.markAsRead);
 
@@ -18,4 +22,4 @@ router.put('/read-all', notificationController.markAllAsRead);
 // DELETE /api/notifications/:id                  → supprimer une notification
 router.delete('/:id', notificationController.deleteNotification);
 
-module.exports = router;
+module.exports = router

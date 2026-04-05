@@ -6,6 +6,7 @@ import Sidebar from '../components/Suplier/Sidebar';
 import AddProductTab from '../components/Suplier/AddProductTab';
 import MyProductsTab from '../components/Suplier/ MyProductsTab';
 import MessagesTab from '../components/Suplier/MessagesTab';
+import Notifications from '../components/Suplier/Notifications'; // ✅ AJOUTEZ
 
 const SupplierDashboard = () => {
     const { user, logout } = useAuth();
@@ -13,15 +14,9 @@ const SupplierDashboard = () => {
 
     const [activeTab, setActiveTab] = useState('addProduct');
 
-    // States pour AddProductTab
     const [productForm, setProductForm] = useState({
-        nom: '',
-        description: '',
-        code_barre: '',
-        origine: '',
-        ingredients: '',
-        image: '',
-        pointsDeVente: []
+        nom: '', description: '', code_barre: '',
+        origine: '', ingredients: '', image: '', pointsDeVente: []
     });
     const [pointsDeVente, setPointsDeVente] = useState([]);
     const [newPoint, setNewPoint] = useState({ nom: '', adresse: '' });
@@ -38,6 +33,7 @@ const SupplierDashboard = () => {
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
                 handleLogout={handleLogout}
+                user={user} // ✅ AJOUTEZ — Sidebar a besoin de user pour useUnreadCount
             />
 
             <div style={styles.content}>
@@ -56,21 +52,16 @@ const SupplierDashboard = () => {
                 )}
                 {activeTab === 'myProducts' && <MyProductsTab user={user} />}
                 {activeTab === 'messages' && <MessagesTab user={user} />}
+                {/* ✅ AJOUTEZ CETTE LIGNE */}
+                {activeTab === 'notifications' && <Notifications user={user} />}
             </div>
         </div>
     );
 };
 
 const styles = {
-    container: {
-        display: 'flex',
-        minHeight: '100vh',
-        backgroundColor: '#f5f5f5'
-    },
-    content: {
-        flex: 1,
-        padding: '30px'
-    }
+    container: { display: 'flex', minHeight: '100vh', backgroundColor: '#f5f5f5' },
+    content: { flex: 1, padding: '30px' }
 };
 
 export default SupplierDashboard;
