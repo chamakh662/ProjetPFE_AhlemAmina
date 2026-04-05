@@ -67,6 +67,18 @@ const Home = () => {
     if (user?.role === 'administrateur') navigate('/dashboard/AdminDashboard', { replace: true });
   }, [user, navigate]);
 
+  // ✅ Fix : ouvre le modal ET définit le produit sélectionné
+  const handleOpenComments = (product) => {
+    setSelectedProduct(product);
+    setShowComments(true);
+  };
+
+  // Fermeture propre du modal commentaires
+  const handleCloseComments = () => {
+    setShowComments(false);
+    setSelectedProduct(null);
+  };
+
   return (
     <div>
       <Navbar
@@ -78,10 +90,44 @@ const Home = () => {
         onLogout={() => { logout(); navigate('/'); }}
       />
 
-      {showFavorites && <FavoritesModal favorites={favorites} onClose={() => setShowFavorites(false)} onRemoveFavorite={removeFavorite} />}
-      {showHistory && <HistoryModal history={searchHistory} onClose={() => setShowHistory(false)} onRemoveItem={removeFromHistory} onClearAll={clearHistory} />}
-      {showComments && selectedProduct && <CommentsModal product={selectedProduct} comments={comments} user={user} onClose={() => setShowComments(false)} onAddComment={addComment} onEditComment={editComment} onDeleteComment={deleteComment} />}
-      {showProfile && user && <ProfileModal user={user} onClose={() => setShowProfile(false)} onUpdateProfile={updateUser} onLogout={() => { logout(); navigate('/'); }} />}
+      {showFavorites && (
+        <FavoritesModal
+          favorites={favorites}
+          onClose={() => setShowFavorites(false)}
+          onRemoveFavorite={removeFavorite}
+        />
+      )}
+
+      {showHistory && (
+        <HistoryModal
+          history={searchHistory}
+          onClose={() => setShowHistory(false)}
+          onRemoveItem={removeFromHistory}
+          onClearAll={clearHistory}
+        />
+      )}
+
+      {/* ✅ Fix : showComments ET selectedProduct doivent être vrais */}
+      {showComments && selectedProduct && (
+        <CommentsModal
+          product={selectedProduct}
+          comments={comments}
+          user={user}
+          onClose={handleCloseComments}
+          onAddComment={addComment}
+          onEditComment={editComment}
+          onDeleteComment={deleteComment}
+        />
+      )}
+
+      {showProfile && user && (
+        <ProfileModal
+          user={user}
+          onClose={() => setShowProfile(false)}
+          onUpdateProfile={updateUser}
+          onLogout={() => { logout(); navigate('/'); }}
+        />
+      )}
 
       <HeroSection />
       <SearchSection
@@ -94,7 +140,7 @@ const Home = () => {
       <ProductsSection
         displayProducts={displayProducts}
         handleAddFavorite={addFavorite}
-        handleOpenComments={setSelectedProduct}
+        handleOpenComments={handleOpenComments} // ✅ Fix : fonction correcte
         isFavorite={isFavorite}
         getAverageRating={getAverageRating}
         getProductComments={getProductComments}
