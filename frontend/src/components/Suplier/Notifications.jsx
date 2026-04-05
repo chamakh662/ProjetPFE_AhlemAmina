@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
- 
+
 const Notifications = ({ user }) => {
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(false);
- 
+
     // ✅ CORRECTION : user peut exposer _id (MongoDB) ou id (JWT décodé)
     const userId = user?.id || user?._id;
- 
+
     useEffect(() => {
         if (userId) loadNotifications();
     }, [userId]);
- 
+
     const loadNotifications = async () => {
         if (!userId) return;
         setLoading(true);
@@ -24,7 +24,7 @@ const Notifications = ({ user }) => {
             setLoading(false);
         }
     };
- 
+
     const markAsRead = async (id) => {
         try {
             await fetch(`/api/notifications/${id}/read`, { method: 'PUT' });
@@ -35,7 +35,7 @@ const Notifications = ({ user }) => {
             console.error('Erreur mark as read:', err);
         }
     };
- 
+
     const markAllAsRead = async () => {
         if (!userId) return;
         try {
@@ -46,7 +46,7 @@ const Notifications = ({ user }) => {
             console.error('Erreur mark all as read:', err);
         }
     };
- 
+
     const deleteNotification = async (id) => {
         try {
             await fetch(`/api/notifications/${id}`, { method: 'DELETE' });
@@ -55,9 +55,9 @@ const Notifications = ({ user }) => {
             console.error('Erreur suppression notification:', err);
         }
     };
- 
+
     const unreadCount = notifications.filter(n => !n.read).length;
- 
+
     const getIcon = (message = '') => {
         if (message.startsWith('✅')) return { icon: '✅', color: '#4CAF50', bg: '#E8F5E9' };
         if (message.startsWith('✏️')) return { icon: '✏️', color: '#1976D2', bg: '#E3F2FD' };
@@ -65,7 +65,7 @@ const Notifications = ({ user }) => {
         if (message.startsWith('❌')) return { icon: '❌', color: '#f44336', bg: '#FFEBEE' };
         return { icon: '🔔', color: '#FF9800', bg: '#FFF3E0' };
     };
- 
+
     const formatDate = (dateStr) => {
         if (!dateStr) return '';
         const date = new Date(dateStr);
@@ -74,14 +74,14 @@ const Notifications = ({ user }) => {
         const diffMin = Math.floor(diffMs / 60000);
         const diffH = Math.floor(diffMin / 60);
         const diffD = Math.floor(diffH / 24);
- 
+
         if (diffMin < 1) return "À l'instant";
         if (diffMin < 60) return `Il y a ${diffMin} min`;
         if (diffH < 24) return `Il y a ${diffH}h`;
         if (diffD === 1) return 'Hier';
         return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
     };
- 
+
     return (
         <div style={S.page}>
             {/* En-tête */}
@@ -104,7 +104,7 @@ const Notifications = ({ user }) => {
                     )}
                 </div>
             </div>
- 
+
             {/* Contenu */}
             {loading ? (
                 <div style={S.center}>
@@ -134,7 +134,7 @@ const Notifications = ({ user }) => {
                                 <div style={{ ...S.iconBox, backgroundColor: bg, color }}>
                                     {getIcon(n.message).icon}
                                 </div>
- 
+
                                 {/* Contenu */}
                                 <div style={S.cardBody}>
                                     {n.productName && (
@@ -149,7 +149,7 @@ const Notifications = ({ user }) => {
                                         <span style={S.date}>{formatDate(n.createdAt || n.date)}</span>
                                     </div>
                                 </div>
- 
+
                                 {/* Actions */}
                                 <div style={S.cardActions}>
                                     {!n.read && (
@@ -169,7 +169,7 @@ const Notifications = ({ user }) => {
                                         🗑️
                                     </button>
                                 </div>
- 
+
                                 {/* Point non lu */}
                                 {!n.read && <div style={S.unreadDot} />}
                             </div>
@@ -180,7 +180,7 @@ const Notifications = ({ user }) => {
         </div>
     );
 };
- 
+
 // ── Styles ────────────────────────────────────────────────────────────────────
 const S = {
     page: {
@@ -354,18 +354,18 @@ const S = {
         backgroundColor: '#1976D2'
     }
 };
- 
+
 export default Notifications;
- 
+
 // ── Hook réutilisable pour compter les non lus (à importer dans Sidebar) ──────
 export const useUnreadCount = (userId) => {
     const [count, setCount] = React.useState(0);
- 
+
     React.useEffect(() => {
         // ✅ Accepte user object ou string ID direct
         const uid = userId?._id || userId?.id || userId;
         if (!uid) return;
- 
+
         const fetchCount = async () => {
             try {
                 const res = await fetch(`/api/notifications?recipientId=${uid}`);
@@ -375,7 +375,7 @@ export const useUnreadCount = (userId) => {
                 setCount(0);
             }
         };
- 
+
         fetchCount();
         // Polling toutes les 30 secondes
         const interval = setInterval(fetchCount, 30000);

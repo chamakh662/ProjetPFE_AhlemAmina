@@ -1,29 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import AddProductTab from '../Suplier/AddProductTab';
- 
+import AddProductTab from '../Shared/AddProcuctTab';
+
 const API_TIMEOUT_MS = 25000;
- 
+
 /** fetch JSON avec délai max + token auth automatique */
 async function fetchJsonWithTimeout(url, options = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), API_TIMEOUT_MS);
- 
+
   const token = localStorage.getItem('token');
   const headers = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers || {}),
   };
- 
+
   try {
     console.log(`📡 [FETCH] ${options.method || 'GET'} ${url}`);
     const res = await fetch(url, { ...options, headers, signal: ctrl.signal });
     let data = null;
     try { data = await res.json(); } catch { /* réponse non-JSON */ }
- 
+
     console.log(`📦 [RESPONSE] ${url} → status=${res.status}`, data);
- 
+
     if (!res.ok) {
       const msg = (data && (data.message || data.error)) || `Erreur ${res.status}`;
       throw new Error(typeof msg === 'string' ? msg : 'Réponse invalide');
@@ -39,33 +39,33 @@ async function fetchJsonWithTimeout(url, options = {}) {
     clearTimeout(timer);
   }
 }
- 
+
 // ─── Liste pays ───────────────────────────────────────────────────────────────
 const PAYS = [
-  'Afghanistan','Afrique du Sud','Albanie','Algérie','Allemagne','Andorre','Angola',
-  'Arabie Saoudite','Argentine','Arménie','Australie','Autriche','Azerbaïdjan',
-  'Bahamas','Bahreïn','Bangladesh','Belgique','Bénin','Biélorussie','Bolivie',
-  'Bosnie-Herzégovine','Botswana','Brésil','Bulgarie','Burkina Faso','Burundi',
-  'Cambodge','Cameroun','Canada','Centrafrique','Chili','Chine','Chypre','Colombie',
-  'Congo','Corée du Nord','Corée du Sud','Costa Rica',"Côte d'Ivoire",'Croatie',
-  'Cuba','Danemark','Djibouti','Égypte','Émirats Arabes Unis','Équateur','Espagne',
-  'Estonie','Éthiopie','Fidji','Finlande','France','Gabon','Gambie','Géorgie',
-  'Ghana','Grèce','Guatemala','Guinée','Guyana','Haïti','Honduras','Hongrie',
-  'Inde','Indonésie','Irak','Iran','Irlande','Islande','Israël','Italie',
-  'Jamaïque','Japon','Jordanie','Kazakhstan','Kenya','Kosovo','Koweït','Laos',
-  'Lettonie','Liban','Libye','Lituanie','Luxembourg','Madagascar','Malaisie',
-  'Mali','Malte','Maroc','Maurice','Mauritanie','Mexique','Moldavie','Monaco',
-  'Mongolie','Monténégro','Mozambique','Namibie','Népal','Niger','Nigéria',
-  'Norvège','Nouvelle-Zélande','Oman','Ouganda','Pakistan','Palestine','Panama',
-  'Paraguay','Pays-Bas','Pérou','Philippines','Pologne','Portugal','Qatar',
-  'République démocratique du Congo','République dominicaine','République tchèque',
-  'Roumanie','Royaume-Uni','Russie','Rwanda','Sénégal','Serbie','Sierra Leone',
-  'Singapour','Slovaquie','Slovénie','Somalie','Soudan','Sri Lanka','Suède',
-  'Suisse','Syrie','Tanzanie','Tchad','Thaïlande','Togo','Trinité-et-Tobago',
-  'Tunisie','Turquie','Ukraine','Uruguay','Vatican','Venezuela','Vietnam',
-  'Yémen','Zambie','Zimbabwe'
+  'Afghanistan', 'Afrique du Sud', 'Albanie', 'Algérie', 'Allemagne', 'Andorre', 'Angola',
+  'Arabie Saoudite', 'Argentine', 'Arménie', 'Australie', 'Autriche', 'Azerbaïdjan',
+  'Bahamas', 'Bahreïn', 'Bangladesh', 'Belgique', 'Bénin', 'Biélorussie', 'Bolivie',
+  'Bosnie-Herzégovine', 'Botswana', 'Brésil', 'Bulgarie', 'Burkina Faso', 'Burundi',
+  'Cambodge', 'Cameroun', 'Canada', 'Centrafrique', 'Chili', 'Chine', 'Chypre', 'Colombie',
+  'Congo', 'Corée du Nord', 'Corée du Sud', 'Costa Rica', "Côte d'Ivoire", 'Croatie',
+  'Cuba', 'Danemark', 'Djibouti', 'Égypte', 'Émirats Arabes Unis', 'Équateur', 'Espagne',
+  'Estonie', 'Éthiopie', 'Fidji', 'Finlande', 'France', 'Gabon', 'Gambie', 'Géorgie',
+  'Ghana', 'Grèce', 'Guatemala', 'Guinée', 'Guyana', 'Haïti', 'Honduras', 'Hongrie',
+  'Inde', 'Indonésie', 'Irak', 'Iran', 'Irlande', 'Islande', 'Israël', 'Italie',
+  'Jamaïque', 'Japon', 'Jordanie', 'Kazakhstan', 'Kenya', 'Kosovo', 'Koweït', 'Laos',
+  'Lettonie', 'Liban', 'Libye', 'Lituanie', 'Luxembourg', 'Madagascar', 'Malaisie',
+  'Mali', 'Malte', 'Maroc', 'Maurice', 'Mauritanie', 'Mexique', 'Moldavie', 'Monaco',
+  'Mongolie', 'Monténégro', 'Mozambique', 'Namibie', 'Népal', 'Niger', 'Nigéria',
+  'Norvège', 'Nouvelle-Zélande', 'Oman', 'Ouganda', 'Pakistan', 'Palestine', 'Panama',
+  'Paraguay', 'Pays-Bas', 'Pérou', 'Philippines', 'Pologne', 'Portugal', 'Qatar',
+  'République démocratique du Congo', 'République dominicaine', 'République tchèque',
+  'Roumanie', 'Royaume-Uni', 'Russie', 'Rwanda', 'Sénégal', 'Serbie', 'Sierra Leone',
+  'Singapour', 'Slovaquie', 'Slovénie', 'Somalie', 'Soudan', 'Sri Lanka', 'Suède',
+  'Suisse', 'Syrie', 'Tanzanie', 'Tchad', 'Thaïlande', 'Togo', 'Trinité-et-Tobago',
+  'Tunisie', 'Turquie', 'Ukraine', 'Uruguay', 'Vatican', 'Venezuela', 'Vietnam',
+  'Yémen', 'Zambie', 'Zimbabwe'
 ];
- 
+
 // ─── Google Maps Link ─────────────────────────────────────────────────────────
 const MapsLink = ({ localisation }) => {
   if (!localisation?.lat || !localisation?.lng) return null;
@@ -76,7 +76,7 @@ const MapsLink = ({ localisation }) => {
     </a>
   );
 };
- 
+
 // ─── Autocomplete ─────────────────────────────────────────────────────────────
 const Autocomplete = ({ value, onChange, placeholder, fetchFn, staticList }) => {
   const [query, setQuery] = useState(value || '');
@@ -86,9 +86,9 @@ const Autocomplete = ({ value, onChange, placeholder, fetchFn, staticList }) => 
   const [loading, setLoading] = useState(false);
   const wrapperRef = useRef(null);
   const debounceRef = useRef(null);
- 
+
   useEffect(() => { setQuery(value || ''); }, [value]);
- 
+
   useEffect(() => {
     const handler = (e) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setOpen(false);
@@ -96,7 +96,7 @@ const Autocomplete = ({ value, onChange, placeholder, fetchFn, staticList }) => 
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
- 
+
   const search = async (val) => {
     if (!val.trim()) { setSuggestions([]); setOpen(false); return; }
     if (staticList) {
@@ -112,18 +112,18 @@ const Autocomplete = ({ value, onChange, placeholder, fetchFn, staticList }) => 
       } finally { setLoading(false); }
     }
   };
- 
+
   const handleInput = (e) => {
     const val = e.target.value;
     setQuery(val); onChange(val); setHighlighted(-1);
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => search(val), 350);
   };
- 
+
   const handleSelect = (item) => {
     setQuery(item.label); onChange(item.value); setSuggestions([]); setOpen(false);
   };
- 
+
   const handleKeyDown = (e) => {
     if (!open) return;
     if (e.key === 'ArrowDown') { e.preventDefault(); setHighlighted(h => Math.min(h + 1, suggestions.length - 1)); }
@@ -131,7 +131,7 @@ const Autocomplete = ({ value, onChange, placeholder, fetchFn, staticList }) => 
     else if (e.key === 'Enter' && highlighted >= 0) { e.preventDefault(); handleSelect(suggestions[highlighted]); }
     else if (e.key === 'Escape') setOpen(false);
   };
- 
+
   return (
     <div ref={wrapperRef} style={{ position: 'relative', width: '100%' }}>
       <div style={{ position: 'relative' }}>
@@ -141,15 +141,20 @@ const Autocomplete = ({ value, onChange, placeholder, fetchFn, staticList }) => 
           onFocus={() => suggestions.length > 0 && setOpen(true)}
           style={S.input} autoComplete="off"
         />
-        {loading && <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: '#999' }}>⏳</span>}
+        {loading && (
+          <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: '#999' }}>⏳</span>
+        )}
       </div>
       {open && (
         <ul style={S.dropdown}>
           {suggestions.map((item, i) => {
             const parts = item.label.split(', ');
             return (
-              <li key={i} onMouseDown={() => handleSelect(item)} onMouseEnter={() => setHighlighted(i)}
-                style={{ ...S.dropdownItem, ...(i === highlighted ? S.dropdownItemHL : {}) }}>
+              <li key={i}
+                onMouseDown={() => handleSelect(item)}
+                onMouseEnter={() => setHighlighted(i)}
+                style={{ ...S.dropdownItem, ...(i === highlighted ? S.dropdownItemHL : {}) }}
+              >
                 {staticList ? (
                   <>
                     <span style={{ fontWeight: 700, color: '#1976D2' }}>{item.label.slice(0, query.length)}</span>
@@ -158,7 +163,9 @@ const Autocomplete = ({ value, onChange, placeholder, fetchFn, staticList }) => 
                 ) : (
                   <>
                     <div style={{ fontWeight: 600, fontSize: 13 }}>📍 {parts[0]}</div>
-                    {parts.slice(1).join(', ') && <div style={{ fontSize: 11, color: '#888' }}>{parts.slice(1).join(', ')}</div>}
+                    {parts.slice(1).join(', ') && (
+                      <div style={{ fontSize: 11, color: '#888' }}>{parts.slice(1).join(', ')}</div>
+                    )}
                   </>
                 )}
               </li>
@@ -169,7 +176,7 @@ const Autocomplete = ({ value, onChange, placeholder, fetchFn, staticList }) => 
     </div>
   );
 };
- 
+
 // Nominatim fetch Tunisie
 const fetchAdresseTunisie = async (val) => {
   const url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=tn&addressdetails=1&limit=8&q=${encodeURIComponent(val)}`;
@@ -180,32 +187,29 @@ const fetchAdresseTunisie = async (val) => {
     return { label, value: label };
   });
 };
- 
+
 // ─── Helper ID ────────────────────────────────────────────────────────────────
 const resolveId = (val) => {
   if (!val) return null;
   if (typeof val === 'object' && val._id) return String(val._id);
   return String(val);
 };
- 
+
 // ─── Notification ─────────────────────────────────────────────────────────────
 const sendNotification = async ({ recipientId, message, productName, agentName }) => {
   const resolvedRecipientId = resolveId(recipientId);
- 
-  // ✅ LOGS DEBUG COMPLETS
+
   console.log('📨 sendNotification appelé');
   console.log('📨 recipientId reçu:', recipientId);
   console.log('📨 recipientId résolu:', resolvedRecipientId);
- 
+
   if (!resolvedRecipientId) {
     console.warn('⚠️ sendNotification : recipientId manquant, notification non envoyée');
     return;
   }
- 
+
   try {
     const token = localStorage.getItem('token');
-    console.log('🔑 Token présent:', !!token);
- 
     const body = {
       recipientId: resolvedRecipientId,
       message,
@@ -214,7 +218,7 @@ const sendNotification = async ({ recipientId, message, productName, agentName }
       date: new Date().toISOString()
     };
     console.log('📨 Body envoyé:', body);
- 
+
     const res = await fetch('/api/notifications', {
       method: 'POST',
       headers: {
@@ -223,9 +227,9 @@ const sendNotification = async ({ recipientId, message, productName, agentName }
       },
       body: JSON.stringify(body)
     });
- 
+
     console.log('📨 sendNotification status:', res.status);
- 
+
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       console.error('❌ sendNotification échoué:', err.message || res.status);
@@ -237,7 +241,7 @@ const sendNotification = async ({ recipientId, message, productName, agentName }
     console.error('❌ Erreur notification catch:', err);
   }
 };
- 
+
 // ─── Toast ────────────────────────────────────────────────────────────────────
 const Toast = ({ toasts }) => (
   <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -250,7 +254,7 @@ const Toast = ({ toasts }) => (
     ))}
   </div>
 );
- 
+
 // ─── Modal confirmation ───────────────────────────────────────────────────────
 const ConfirmModal = ({ open, message, onConfirm, onCancel }) => {
   if (!open) return null;
@@ -266,8 +270,8 @@ const ConfirmModal = ({ open, message, onConfirm, onCancel }) => {
     </div>
   );
 };
- 
-// ─── Formulaire produit ───────────────────────────────────────────────────────
+
+// ─── Formulaire modification produit ─────────────────────────────────────────
 const ProductForm = ({ form, setForm, pointsDeVente, onSubmit, onCancel, submitLabel }) => {
   const readFile = (file) => new Promise((res, rej) => {
     const r = new FileReader();
@@ -275,7 +279,7 @@ const ProductForm = ({ form, setForm, pointsDeVente, onSubmit, onCancel, submitL
     r.onerror = () => rej(new Error('Erreur lecture'));
     r.readAsDataURL(file);
   });
- 
+
   return (
     <div style={S.formCard}>
       <div style={S.formGrid}>
@@ -299,7 +303,9 @@ const ProductForm = ({ form, setForm, pointsDeVente, onSubmit, onCancel, submitL
           try { setForm({ ...form, image: await readFile(file) }); }
           catch { alert("Impossible de lire l'image"); }
         }} style={S.input} />
-      {form.image && <img src={form.image} alt="Preview" style={{ maxWidth: 180, borderRadius: 8, marginTop: 6 }} />}
+      {form.image && (
+        <img src={form.image} alt="Preview" style={{ maxWidth: 180, borderRadius: 8, marginTop: 6 }} />
+      )}
       <label style={{ fontSize: 13, color: '#555' }}>Points de vente</label>
       <select multiple value={form.pointsDeVente || []}
         onChange={e => {
@@ -317,11 +323,11 @@ const ProductForm = ({ form, setForm, pointsDeVente, onSubmit, onCancel, submitL
     </div>
   );
 };
- 
+
 // ─── Composant principal ──────────────────────────────────────────────────────
 const ProductsTab = () => {
   const { user } = useAuth();
- 
+
   const [products, setProducts] = useState([]);
   const [pendingProducts, setPendingProducts] = useState([]);
   const [pointsDeVente, setPointsDeVente] = useState([]);
@@ -331,29 +337,28 @@ const ProductsTab = () => {
   const [editingProductId, setEditingProductId] = useState(null);
   const [toasts, setToasts] = useState([]);
   const [confirm, setConfirm] = useState({ open: false, message: '', onConfirm: null });
- 
+
   const emptyForm = { nom: '', description: '', code_barre: '', origine: '', ingredients: '', image: '', pointsDeVente: [] };
   const [productForm, setProductForm] = useState(emptyForm);
-  const [newProductForm, setNewProductForm] = useState(emptyForm);
   const [newPoint, setNewPoint] = useState({ nom: '', adresse: '' });
- 
+
   useEffect(() => {
     console.log('🚀 ProductsTab monté — appel loadAll()');
     loadAll();
   }, []);
- 
+
   const loadAll = async () => {
     console.log('🔄 loadAll() démarré');
     setLoadingProducts(true);
     setErrorMsg('');
- 
+
     try {
       const [r0, r1, r2] = await Promise.allSettled([
         fetchJsonWithTimeout('/api/produits'),
         fetchJsonWithTimeout('/api/produits/pending'),
         fetchJsonWithTimeout('/api/pointDeVente'),
       ]);
- 
+
       const extractArray = (result) => {
         if (result.status !== 'fulfilled') return [];
         const val = result.value;
@@ -362,21 +367,17 @@ const ProductsTab = () => {
         if (val && Array.isArray(val.data)) return val.data;
         return [];
       };
- 
-      const approuves = extractArray(r0);
-      const enAttente = extractArray(r1);
-      const pdv       = extractArray(r2);
- 
-      setProducts(approuves);
-      setPendingProducts(enAttente);
-      setPointsDeVente(pdv);
- 
+
+      setProducts(extractArray(r0));
+      setPendingProducts(extractArray(r1));
+      setPointsDeVente(extractArray(r2));
+
       const errors = [];
       if (r0.status === 'rejected') errors.push(`Produits validés : ${r0.reason?.message}`);
       if (r1.status === 'rejected') errors.push(`En attente : ${r1.reason?.message}`);
       if (r2.status === 'rejected') errors.push(`Points de vente : ${r2.reason?.message}`);
       if (errors.length > 0) setErrorMsg(errors.join(' | '));
- 
+
     } catch (err) {
       console.error('❌ loadAll() erreur globale:', err);
       setErrorMsg(`Erreur chargement : ${err.message}`);
@@ -384,48 +385,50 @@ const ProductsTab = () => {
       setLoadingProducts(false);
     }
   };
- 
+
   const toast = (msg, type = 'success') => {
     const id = Date.now();
     setToasts(t => [...t, { id, msg, type }]);
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3500);
   };
- 
+
   const askConfirm = (message) => new Promise(resolve => {
     setConfirm({
       open: true, message,
       onConfirm: () => { setConfirm(c => ({ ...c, open: false })); resolve(true); }
     });
   });
- 
+
   const acceptProduct = async (product) => {
     try {
       console.log('🔍 product complet:', product);
       console.log('🔍 product.createdBy:', product.createdBy);
- 
+
       await fetchJsonWithTimeout(`/api/produits/${product._id}/approve`, {
         method: 'PUT',
         body: JSON.stringify({ validatedBy: user?.id || user?._id }),
       });
- 
+
       await sendNotification({
         recipientId: product.createdBy,
         productName: product.nom,
         agentName: user?.name || user?.nom || 'Un agent',
         message: `✅ Votre produit "${product.nom}" a été accepté par l'agent ${user?.name || user?.nom || ''}.`
       });
- 
+
       await loadAll();
       toast(`Produit "${product.nom}" accepté ✅`);
     } catch (err) {
       toast(err.message, 'error');
     }
   };
- 
+
   const startEdit = (p) => {
     setEditingProductId(p._id);
     setProductForm({
-      nom: p.nom || '', description: p.description || '', code_barre: p.code_barre || '',
+      nom: p.nom || '',
+      description: p.description || '',
+      code_barre: p.code_barre || '',
       origine: p.origine || '',
       ingredients: Array.isArray(p.ingredients)
         ? p.ingredients.map(i => i?.nom || i).filter(Boolean).join(', ')
@@ -436,14 +439,14 @@ const ProductsTab = () => {
     });
     setActiveTab('approved');
   };
- 
+
   const saveEdit = async (product) => {
     try {
       await fetchJsonWithTimeout(`/api/produits/${product._id}`, {
         method: 'PUT',
         body: JSON.stringify({ ...productForm, modifiedBy: user?.id || user?._id }),
       });
- 
+
       const createdById = resolveId(product.createdBy);
       const currentUserId = user?.id || user?._id;
       if (createdById && createdById !== String(currentUserId)) {
@@ -454,13 +457,16 @@ const ProductsTab = () => {
           message: `✏️ Votre produit "${product.nom}" a été modifié par l'agent ${user?.name || user?.nom || ''}.`
         });
       }
- 
-      setEditingProductId(null); setProductForm(emptyForm);
+
+      setEditingProductId(null);
+      setProductForm(emptyForm);
       await loadAll();
       toast(`Produit "${product.nom}" modifié ✅`);
-    } catch (err) { toast(err.message, 'error'); }
+    } catch (err) {
+      toast(err.message, 'error');
+    }
   };
- 
+
   const deleteProduct = async (product) => {
     const ok = await askConfirm(`Supprimer le produit "${product.nom}" ?`);
     if (!ok) return;
@@ -469,7 +475,7 @@ const ProductsTab = () => {
         method: 'DELETE',
         body: JSON.stringify({ deletedBy: user?.id || user?._id }),
       });
- 
+
       const createdById = resolveId(product.createdBy);
       const currentUserId = user?.id || user?._id;
       if (createdById && createdById !== String(currentUserId)) {
@@ -480,12 +486,14 @@ const ProductsTab = () => {
           message: `🗑️ Votre produit "${product.nom}" a été supprimé par l'agent ${user?.name || user?.nom || ''}.`
         });
       }
- 
+
       await loadAll();
       toast(`Produit "${product.nom}" supprimé`, 'info');
-    } catch (err) { toast(err.message, 'error'); }
+    } catch (err) {
+      toast(err.message, 'error');
+    }
   };
- 
+
   const refuseProduct = async (product) => {
     const ok = await askConfirm(`Refuser et supprimer le produit "${product.nom}" ?`);
     if (!ok) return;
@@ -494,21 +502,25 @@ const ProductsTab = () => {
         method: 'PUT',
         body: JSON.stringify({ rejectedBy: user?.id || user?._id }),
       });
- 
+
       await sendNotification({
         recipientId: product.createdBy,
         productName: product.nom,
         agentName: user?.name || user?.nom || 'Un agent',
         message: `❌ Votre produit "${product.nom}" a été refusé par l'agent ${user?.name || user?.nom || ''}.`
       });
- 
+
       await loadAll();
       toast(`Produit "${product.nom}" refusé`, 'info');
-    } catch (err) { toast(err.message, 'error'); }
+    } catch (err) {
+      toast(err.message, 'error');
+    }
   };
- 
+
   const handleAddPoint = async () => {
-    if (!newPoint.nom.trim() || !newPoint.adresse.trim()) { toast('Nom et adresse requis', 'error'); return; }
+    if (!newPoint.nom.trim() || !newPoint.adresse.trim()) {
+      toast('Nom et adresse requis', 'error'); return;
+    }
     try {
       await fetchJsonWithTimeout('/api/pointDeVente', {
         method: 'POST',
@@ -517,9 +529,11 @@ const ProductsTab = () => {
       setNewPoint({ nom: '', adresse: '' });
       await loadAll();
       toast('Point de vente ajouté ✅');
-    } catch (err) { toast(err.message, 'error'); }
+    } catch (err) {
+      toast(err.message, 'error');
+    }
   };
- 
+
   const handleDeletePoint = async (pv) => {
     const ok = await askConfirm(`Supprimer le point de vente "${pv.nom}" ?`);
     if (!ok) return;
@@ -527,41 +541,49 @@ const ProductsTab = () => {
       await fetchJsonWithTimeout(`/api/pointDeVente/${pv._id}`, { method: 'DELETE' });
       await loadAll();
       toast(`Point "${pv.nom}" supprimé`, 'info');
-    } catch (err) { toast(err.message, 'error'); }
+    } catch (err) {
+      toast(err.message, 'error');
+    }
   };
- 
+
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div style={S.page}>
       <style>{`@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }`}</style>
       <Toast toasts={toasts} />
-      <ConfirmModal open={confirm.open} message={confirm.message}
-        onConfirm={confirm.onConfirm} onCancel={() => setConfirm(c => ({ ...c, open: false }))} />
- 
+      <ConfirmModal
+        open={confirm.open}
+        message={confirm.message}
+        onConfirm={confirm.onConfirm}
+        onCancel={() => setConfirm(c => ({ ...c, open: false }))}
+      />
+
       <h2 style={S.pageTitle}>📦 Gérer les Produits</h2>
- 
+
       {errorMsg && (
         <div style={S.errorBanner}>
           ⚠️ {errorMsg}
           <button onClick={loadAll} style={S.retryBtn}>🔄 Réessayer</button>
         </div>
       )}
- 
+
       {/* Onglets */}
       <div style={S.tabs}>
         {[
           { key: 'approved', label: `✅ Produits validés (${products.length})` },
-          { key: 'pending',  label: `⏳ En attente (${pendingProducts.length})`, badge: pendingProducts.length > 0 },
-          { key: 'add',      label: '➕ Nouveau produit' },
-          { key: 'points',   label: `📍 Points de vente (${pointsDeVente.length})` },
+          { key: 'pending', label: `⏳ En attente (${pendingProducts.length})`, badge: pendingProducts.length > 0 },
+          { key: 'add', label: '➕ Nouveau produit' },
+          { key: 'points', label: `📍 Points de vente (${pointsDeVente.length})` },
         ].map(tab => (
-          <button key={tab.key} onClick={() => { setActiveTab(tab.key); setEditingProductId(null); }}
-            style={{ ...S.tab, ...(activeTab === tab.key ? S.tabActive : {}), ...(tab.badge ? S.tabBadge : {}) }}>
+          <button key={tab.key}
+            onClick={() => { setActiveTab(tab.key); setEditingProductId(null); }}
+            style={{ ...S.tab, ...(activeTab === tab.key ? S.tabActive : {}), ...(tab.badge ? S.tabBadge : {}) }}
+          >
             {tab.label}
           </button>
         ))}
       </div>
- 
+
       {loadingProducts ? (
         <div style={S.loading}>⏳ Chargement des produits...</div>
       ) : (
@@ -576,10 +598,12 @@ const ProductsTab = () => {
                     {editingProductId === p._id ? (
                       <>
                         <h4 style={S.cardTitle}>✏️ Modifier : {p.nom}</h4>
-                        <ProductForm form={productForm} setForm={setProductForm} pointsDeVente={pointsDeVente}
+                        <ProductForm
+                          form={productForm} setForm={setProductForm} pointsDeVente={pointsDeVente}
                           onSubmit={() => saveEdit(p)}
                           onCancel={() => { setEditingProductId(null); setProductForm(emptyForm); }}
-                          submitLabel="💾 Enregistrer" />
+                          submitLabel="💾 Enregistrer"
+                        />
                       </>
                     ) : (
                       <div style={S.cardRow}>
@@ -593,7 +617,9 @@ const ProductsTab = () => {
                           {p.code_barre && <p style={S.meta}>🔖 {p.code_barre}</p>}
                           {p.pointsDeVente?.length > 0 && (
                             <p style={S.meta}>
-                              📍 {p.pointsDeVente.map(pv => typeof pv === 'object' ? (pv?.nom || pv?.adresse || '') : String(pv)).filter(Boolean).join(', ')}
+                              📍 {p.pointsDeVente.map(pv =>
+                                typeof pv === 'object' ? (pv?.nom || pv?.adresse || '') : String(pv)
+                              ).filter(Boolean).join(', ')}
                             </p>
                           )}
                           <MapsLink localisation={p.localisation} />
@@ -609,7 +635,7 @@ const ProductsTab = () => {
               }
             </div>
           )}
- 
+
           {/* ── En attente ── */}
           {activeTab === 'pending' && (
             <div>
@@ -636,7 +662,9 @@ const ProductsTab = () => {
                         )}
                         {p.pointsDeVente?.length > 0 && (
                           <p style={S.meta}>
-                            📍 {p.pointsDeVente.map(pv => typeof pv === 'object' ? (pv?.nom || pv?.adresse || '') : String(pv)).filter(Boolean).join(', ')}
+                            📍 {p.pointsDeVente.map(pv =>
+                              typeof pv === 'object' ? (pv?.nom || pv?.adresse || '') : String(pv)
+                            ).filter(Boolean).join(', ')}
                           </p>
                         )}
                         {p.localisation?.lat && p.localisation?.lng && (
@@ -649,7 +677,9 @@ const ProductsTab = () => {
                           </div>
                         )}
                         <p style={{ ...S.meta, color: '#999' }}>
-                          Soumis par : {p.createdByName || (typeof p.createdBy === 'object' ? (p.createdBy?.nom || p.createdBy?.email || 'Fournisseur') : p.createdBy) || 'Fournisseur'}
+                          Soumis par : {p.createdByName || (typeof p.createdBy === 'object'
+                            ? (p.createdBy?.nom || p.createdBy?.email || 'Fournisseur')
+                            : p.createdBy) || 'Fournisseur'}
                         </p>
                       </div>
                       <div style={S.cardActions}>
@@ -662,16 +692,20 @@ const ProductsTab = () => {
               }
             </div>
           )}
- 
-          {/* ── Ajouter produit ── */}
+
+          {/* ── Ajouter produit → composant partagé ── */}
           {activeTab === 'add' && (
             <AddProductTab
               user={user}
-              directApprove={true}
-              onSuccess={() => { loadAll(); setActiveTab('approved'); toast('Produit ajouté et publié ✅'); }}
+              role="agent"
+              onSuccess={() => {
+                loadAll();
+                setActiveTab('approved');
+                toast('Produit ajouté et publié ✅');
+              }}
             />
           )}
- 
+
           {/* ── Points de vente ── */}
           {activeTab === 'points' && (
             <div>
@@ -679,7 +713,8 @@ const ProductsTab = () => {
               <div style={S.pointForm}>
                 <input placeholder="Nom du point de vente" value={newPoint.nom}
                   onChange={e => setNewPoint({ ...newPoint, nom: e.target.value })} style={S.input} />
-                <Autocomplete value={newPoint.adresse} onChange={val => setNewPoint({ ...newPoint, adresse: val })}
+                <Autocomplete value={newPoint.adresse}
+                  onChange={val => setNewPoint({ ...newPoint, adresse: val })}
                   placeholder="Adresse en Tunisie 📍" fetchFn={fetchAdresseTunisie} />
                 <button onClick={handleAddPoint} style={S.btnSuccess}>+ Ajouter</button>
               </div>
@@ -709,7 +744,7 @@ const ProductsTab = () => {
     </div>
   );
 };
- 
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const S = {
   page: { padding: '8px 0', fontFamily: 'sans-serif' },
@@ -748,5 +783,5 @@ const S = {
   btnDangerSm: { backgroundColor: '#f44336', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 13 },
   btnSecondary: { backgroundColor: '#fff', color: '#555', border: '1px solid #ccc', padding: '9px 16px', borderRadius: 6, cursor: 'pointer', fontWeight: 500, fontSize: 13 },
 };
- 
+
 export default ProductsTab;

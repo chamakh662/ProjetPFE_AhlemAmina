@@ -4,10 +4,10 @@ import { useNavigate } from 'react-router-dom';
 
 import Sidebar from '../components/Agent/Sidebar';
 import OverviewTab from '../components/Agent/OverviewTabl';
-import NotificationsTab from '../components/Agent/Messagerie';
 import ProductsTab from '../components/Agent/ProductsTab';
 import ProfileTab from '../components/Agent/ProfileTab';
 import AiAnalysisTab from '../components/Agent/AiAnalysisTab';
+import Messagerie from '../components/Shared/Messagerie';
 
 const AgentDashboard = () => {
   const { user, logout, updateUser } = useAuth();
@@ -22,7 +22,7 @@ const AgentDashboard = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'overview': return <OverviewTab />;
-      case 'notifications': return <NotificationsTab />;
+      case 'notifications': return <Messagerie user={user} role="agent" />;
       case 'products': return <ProductsTab />;
       case 'aiAnalysis': return <AiAnalysisTab />;
       case 'profile': return <ProfileTab user={user} updateUser={updateUser} />;
@@ -39,8 +39,15 @@ const AgentDashboard = () => {
 };
 
 const styles = {
-  container: { display: 'flex', minHeight: '100vh', backgroundColor: '#f5f5f5' },
-  content: { flex: 1, padding: '30px' }
+  container: {
+    display: 'flex',
+    minHeight: '100vh',
+    backgroundColor: '#f5f5f5'
+  },
+  content: {
+    flex: 1,
+    padding: '30px'
+  }
 };
 
 export default AgentDashboard;

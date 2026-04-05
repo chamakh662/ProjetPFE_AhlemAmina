@@ -3,28 +3,24 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 import Sidebar from '../components/Suplier/Sidebar';
-import AddProductTab from '../components/Suplier/AddProductTab';
+import AddProductTab from '../components/Shared/AddProcuctTab';
 import MyProductsTab from '../components/Suplier/ MyProductsTab';
-import MessagesTab from '../components/Suplier/MessagesTab';
-import Notifications from '../components/Suplier/Notifications'; // ✅ AJOUTEZ
+import Notifications from '../components/Suplier/Notifications';
+import Messagerie from '../components/Shared/Messagerie';
 
 const SupplierDashboard = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
-
     const [activeTab, setActiveTab] = useState('addProduct');
-
-    const [productForm, setProductForm] = useState({
-        nom: '', description: '', code_barre: '',
-        origine: '', ingredients: '', image: '', pointsDeVente: []
-    });
-    const [pointsDeVente, setPointsDeVente] = useState([]);
-    const [newPoint, setNewPoint] = useState({ nom: '', adresse: '' });
-    const [loading, setLoading] = useState(false);
 
     const handleLogout = () => {
         logout();
         navigate('/');
+    };
+
+    // ✅ callback après ajout produit
+    const handleProductAdded = () => {
+        setActiveTab('myProducts'); // redirige vers mes produits
     };
 
     return (
@@ -33,35 +29,42 @@ const SupplierDashboard = () => {
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
                 handleLogout={handleLogout}
-                user={user} // ✅ AJOUTEZ — Sidebar a besoin de user pour useUnreadCount
+                user={user}
             />
 
             <div style={styles.content}>
                 {activeTab === 'addProduct' && (
                     <AddProductTab
                         user={user}
-                        productForm={productForm}
-                        setProductForm={setProductForm}
-                        pointsDeVente={pointsDeVente}
-                        setPointsDeVente={setPointsDeVente}
-                        newPoint={newPoint}
-                        setNewPoint={setNewPoint}
-                        loading={loading}
-                        setLoading={setLoading}
+                        role="fournisseur"
+                        onSuccess={handleProductAdded}
                     />
                 )}
+
                 {activeTab === 'myProducts' && <MyProductsTab user={user} />}
-                {activeTab === 'messages' && <MessagesTab user={user} />}
-                {/* ✅ AJOUTEZ CETTE LIGNE */}
-                {activeTab === 'notifications' && <Notifications user={user} />}
+
+                {activeTab === 'messages' && (
+                    <Messagerie user={user} role="fournisseur" />
+                )}
+
+                {activeTab === 'notifications' && (
+                    <Notifications user={user} />
+                )}
             </div>
         </div>
     );
 };
 
 const styles = {
-    container: { display: 'flex', minHeight: '100vh', backgroundColor: '#f5f5f5' },
-    content: { flex: 1, padding: '30px' }
+    container: {
+        display: 'flex',
+        minHeight: '100vh',
+        backgroundColor: '#f5f5f5'
+    },
+    content: {
+        flex: 1,
+        padding: '30px'
+    }
 };
 
 export default SupplierDashboard;
