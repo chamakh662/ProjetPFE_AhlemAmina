@@ -46,14 +46,14 @@ const Home = () => {
     { sender: 'bot', text: 'Bonjour ! Je suis votre assistant BioScan.' }
   ]);
 
-  // Hooks personnalisés
-  const { favorites, isFavorite, addFavorite, removeFavorite } = useFavorites(user?.id);
+  // ✅ Hooks personnalisés — passe userId ET userRole à useFavorites
+  const { favorites, isFavorite, addFavorite, removeFavorite } = useFavorites(user?.id, user?.role);
   const { searchHistory, addToHistory, removeFromHistory, clearHistory } = useHistory(user?.id);
   const { comments, getProductComments, getAverageRating, addComment, editComment, deleteComment } = useComments();
 
   // Chargement produits depuis API
   useEffect(() => {
-    fetch('/api/produits?status=approved')
+    fetch('http://localhost:5000/api/produits?status=approved')
       .then(res => res.json())
       .then(data => {
         setAllProducts(data);
@@ -67,7 +67,7 @@ const Home = () => {
     if (user?.role === 'administrateur') navigate('/dashboard/AdminDashboard', { replace: true });
   }, [user, navigate]);
 
-  // ✅ Fix : ouvre le modal ET définit le produit sélectionné
+  // Ouvre le modal commentaires
   const handleOpenComments = (product) => {
     setSelectedProduct(product);
     setShowComments(true);
@@ -107,7 +107,6 @@ const Home = () => {
         />
       )}
 
-      {/* ✅ Fix : showComments ET selectedProduct doivent être vrais */}
       {showComments && selectedProduct && (
         <CommentsModal
           product={selectedProduct}
@@ -137,13 +136,15 @@ const Home = () => {
         addToHistory={addToHistory}
       />
       <ScannerSection barcode={barcode} setBarcode={setBarcode} />
+
       <ProductsSection
         displayProducts={displayProducts}
         handleAddFavorite={addFavorite}
-        handleOpenComments={handleOpenComments} // ✅ Fix : fonction correcte
+        handleOpenComments={handleOpenComments}
         isFavorite={isFavorite}
         getAverageRating={getAverageRating}
         getProductComments={getProductComments}
+        user={user}  // ✅ passe l'utilisateur à ProductsSection → ProductCard
       />
 
       {/* Chatbot uniquement pour les consommateurs */}

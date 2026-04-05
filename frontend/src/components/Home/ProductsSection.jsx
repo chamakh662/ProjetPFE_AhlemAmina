@@ -1,3 +1,4 @@
+// src/components/Home/ProductsSection.jsx
 import React from 'react';
 import ProductCard from './ProductCard';
 
@@ -11,7 +12,8 @@ const ProductsSection = ({
     getProductComments = () => [],
     getScoreColor = () => '#000',
     getRiskColor = () => '#000',
-    setSearchQuery = () => { }
+    setSearchQuery = () => { },
+    user = null
 }) => {
     const safeSearchQuery = searchQuery ? searchQuery.toString() : '';
 
@@ -32,21 +34,25 @@ const ProductsSection = ({
                     </div>
                 ) : (
                     <div style={styles.productsGrid}>
-                        {displayProducts.map((produit) => (
-                            <ProductCard
-                                key={produit.id_produit}
-                                produit={produit}
-                                onFavorite={() => handleAddFavorite(produit)}
-                                onComment={() => handleOpenComments(produit)}
-                                isFavorite={isFavorite(produit.id_produit)}
-                                averageRating={getAverageRating(produit.id_produit)}
-                                commentCount={getProductComments(produit.id_produit).length}
-                                getScoreColor={getScoreColor}
-                                getRiskColor={getRiskColor}
-                                // ✅ NOUVEAU : passer la localisation à ProductCard
-                                localisation={produit.localisation}
-                            />
-                        ))}
+                        {displayProducts.map((produit) => {
+                            // ✅ Utilise _id (champ réel MongoDB)
+                            const productId = produit._id || produit.id_produit || produit.id;
+                            return (
+                                <ProductCard
+                                    key={productId}
+                                    produit={produit}
+                                    user={user}
+                                    onFavorite={() => handleAddFavorite(produit)}
+                                    onComment={() => handleOpenComments(produit)}
+                                    isFavorite={isFavorite(productId)}
+                                    averageRating={getAverageRating(productId)}
+                                    commentCount={getProductComments(productId).length}
+                                    getScoreColor={getScoreColor}
+                                    getRiskColor={getRiskColor}
+                                    localisation={produit.localisation}
+                                />
+                            );
+                        })}
                     </div>
                 )}
             </div>
@@ -54,7 +60,6 @@ const ProductsSection = ({
     );
 };
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = {
     section: { padding: '4rem 1.5rem', backgroundColor: '#fff' },
     container: { maxWidth: '1200px', margin: '0 auto', padding: '0 1.5rem' },
@@ -65,47 +70,3 @@ const styles = {
 };
 
 export default ProductsSection;
-
-/*
-  ════════════════════════════════════════════════════════════
-  ✅ MODIFICATION À FAIRE DANS ProductCard.jsx
-  ════════════════════════════════════════════════════════════
-
-  Dans ProductCard, ajouter la prop `localisation` et afficher
-  le lien Google Maps si lat/lng sont disponibles.
-
-  Exemple — ajouter dans le JSX de ProductCard :
-
-  const ProductCard = ({ produit, localisation, ...autresProps }) => {
-
-    const mapsUrl = localisation?.lat && localisation?.lng
-      ? `https://www.google.com/maps?q=${localisation.lat},${localisation.lng}`
-      : null;
-
-    return (
-      <div style={cardStyles.card}>
-        ...votre contenu existant...
-
-        {mapsUrl && (
-          <a
-            href={mapsUrl}
-            target="_blank"
-            rel="noreferrer"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              marginTop: '10px',
-              color: '#1976D2',
-              fontSize: '13px',
-              fontWeight: 600,
-              textDecoration: 'none'
-            }}
-          >
-            🗺️ Voir le point de vente
-          </a>
-        )}
-      </div>
-    );
-  };
-*/
