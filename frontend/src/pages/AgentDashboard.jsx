@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-import Sidebar from '../components/Agent/Sidebar';
+import Sidebar from '../components/Shared/Sidebar';   // ✅ modifié
 import OverviewTab from '../components/Agent/OverviewTabl';
 import ProductsTab from '../components/Agent/ProductsTab';
 import ProfileTab from '../components/Agent/ProfileTab';
@@ -32,7 +32,13 @@ const AgentDashboard = () => {
 
   return (
     <div style={styles.container}>
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout} />
+      <Sidebar
+        role="agent"                     // ✅ ajouté
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onLogout={handleLogout}
+        user={user}
+      />
       <div style={styles.content}>{renderContent()}</div>
     </div>
   );

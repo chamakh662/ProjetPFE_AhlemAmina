@@ -1,0 +1,282 @@
+import React from 'react';
+
+/**
+ * Composant Sidebar partagé
+ *
+ * Props :
+ *  - role        : 'agent' | 'fournisseur' | 'admin'
+ *  - activeTab   : string
+ *  - setActiveTab: fonction
+ *  - onLogout    : fonction
+ *  - user        : objet utilisateur { nom, prenom, ... }
+ *  - unreadCount : nombre de notifications non lues (fournisseur uniquement)
+ *  - extraBadges : { [tabKey]: number } — badges dynamiques (ex: { users: 5 })
+ */
+const Sidebar = ({
+    role = 'agent',
+    activeTab,
+    setActiveTab,
+    onLogout,
+    user,
+    unreadCount = 0,
+    extraBadges = {},
+}) => {
+
+    // ─── Config selon le rôle ─────────────────────────────────────────────
+    const config = {
+        agent: {
+            title: 'Espace Agent',
+            menuItems: [
+                { key: 'overview', label: "Vue d'ensemble", icon: '📊' },
+                { key: 'products', label: 'Gérer Produits', icon: '📦' },
+                { key: 'notifications', label: 'Messagerie', icon: '📩' },
+                { key: 'aiAnalysis', label: 'Analyse IA', icon: '🤖' },
+                { key: 'profile', label: 'Mon Profil', icon: '👤' },
+            ],
+        },
+        fournisseur: {
+            title: 'Espace Fournisseur',
+            menuItems: [
+                { key: 'addProduct', label: 'Ajouter Produit', icon: '➕' },
+                { key: 'myProducts', label: 'Mes Produits', icon: '📦' },
+                { key: 'messages', label: 'Messages', icon: '💬' },
+                { key: 'notifications', label: 'Notifications', icon: '🔔', badge: true },
+            ],
+        },
+        admin: {
+            title: 'AdminPanel',
+            titleIcon: '🛡️',
+            menuItems: [
+                { key: 'dashboard', label: "Vue d'ensemble", icon: '📊' },
+                { key: 'users', label: 'Utilisateurs', icon: '👥', dynamicBadge: 'users' },
+                { key: 'products', label: 'Produits', icon: '📦' },
+                { key: 'reports', label: 'Rapports', icon: '📈' },
+            ],
+        },
+    };
+
+    const cfg = config[role];
+
+    // Initiales pour l'avatar
+    const initiales =
+        ((user?.prenom?.[0] || '') + (user?.nom?.[0] || '')).toUpperCase() || 'A';
+    const nomComplet =
+        `${user?.prenom || ''} ${user?.nom || ''}`.trim() || 'Utilisateur';
+    const roleLabel =
+        role === 'agent' ? 'Agent' :
+            role === 'fournisseur' ? 'Fournisseur' :
+                'Administrateur';
+
+    return (
+        <div style={styles.sidebar}>
+            {/* ── Titre / Logo ── */}
+            <div style={styles.logoContainer}>
+                {cfg.titleIcon && <span style={styles.logoIcon}>{cfg.titleIcon}</span>}
+                <h2 style={styles.title}>{cfg.title}</h2>
+            </div>
+
+            {/* ── Navigation ── */}
+            <nav style={styles.nav}>
+                {cfg.menuItems.map(item => {
+                    const isActive = activeTab === item.key;
+
+                    // Badge fournisseur (unreadCount)
+                    const showUnreadBadge = item.badge && unreadCount > 0;
+                    // Badge dynamique (ex: total users pour admin)
+                    const dynamicBadgeValue = item.dynamicBadge ? extraBadges[item.dynamicBadge] : null;
+
+                    return (
+                        <button
+                            key={item.key}
+                            onClick={() => setActiveTab(item.key)}
+                            style={isActive ? styles.activeButton : styles.menuButton}
+                        >
+                            <span style={styles.btnContent}>
+                                <span style={styles.btnLabel}>
+                                    <span style={styles.btnIcon}>{item.icon}</span>
+                                    {item.label}
+                                </span>
+                                {showUnreadBadge && (
+                                    <span style={styles.badge}>
+                                        {unreadCount > 99 ? '99+' : unreadCount}
+                                    </span>
+                                )}
+                                {dynamicBadgeValue != null && (
+                                    <span style={styles.badgeDynamic}>
+                                        {dynamicBadgeValue > 99 ? '99+' : dynamicBadgeValue}
+                                    </span>
+                                )}
+                            </span>
+                        </button>
+                    );
+                })}
+            </nav>
+
+            {/* ── Footer : infos utilisateur + déconnexion ── */}
+            <div style={styles.footer}>
+                <div style={styles.userInfo}>
+                    <div style={styles.avatar}>{initiales}</div>
+                    <div style={styles.userText}>
+                        <span style={styles.userName}>{nomComplet}</span>
+                        <span style={styles.userRole}>{roleLabel}</span>
+                    </div>
+                </div>
+                <button onClick={onLogout} style={styles.logoutBtn} title="Déconnexion">
+                    🚪
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+const styles = {
+    sidebar: {
+        width: '230px',
+        minHeight: '100vh',
+        backgroundColor: '#1e293b',
+        color: 'white',
+        padding: '1.5rem',
+        display: 'flex',
+        flexDirection: 'column',
+        boxSizing: 'border-box',
+        flexShrink: 0,
+    },
+    logoContainer: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.6rem',
+        marginBottom: '2rem',
+    },
+    logoIcon: { fontSize: '1.6rem' },
+    title: {
+        margin: 0,
+        fontSize: 18,
+        fontWeight: 700,
+        color: '#fff',
+    },
+    nav: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+        flex: 1,
+    },
+    menuButton: {
+        width: '100%',
+        padding: '10px 14px',
+        backgroundColor: 'transparent',
+        border: 'none',
+        borderLeft: '4px solid transparent',
+        color: '#94a3b8',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        textAlign: 'left',
+        fontSize: 14,
+        fontWeight: 500,
+    },
+    activeButton: {
+        width: '100%',
+        padding: '10px 14px',
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        border: 'none',
+        borderLeft: '4px solid #3b82f6',
+        color: 'white',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        textAlign: 'left',
+        fontWeight: 700,
+        fontSize: 14,
+    },
+    btnContent: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        width: '100%',
+    },
+    btnLabel: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.6rem',
+    },
+    btnIcon: { fontSize: 16 },
+    badge: {
+        backgroundColor: '#ef4444',
+        color: '#fff',
+        borderRadius: 10,
+        padding: '1px 7px',
+        fontSize: 11,
+        fontWeight: 700,
+        minWidth: 18,
+        textAlign: 'center',
+    },
+    badgeDynamic: {
+        backgroundColor: '#64748b',
+        color: '#fff',
+        borderRadius: 10,
+        padding: '1px 7px',
+        fontSize: 11,
+        fontWeight: 700,
+        minWidth: 18,
+        textAlign: 'center',
+    },
+
+    // ── Footer ──
+    footer: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '8px',
+        paddingTop: '1rem',
+        borderTop: '1px solid #334155',
+        marginTop: 'auto',
+    },
+    userInfo: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.65rem',
+        overflow: 'hidden',
+        flex: 1,
+    },
+    avatar: {
+        width: 36,
+        height: 36,
+        backgroundColor: '#3b82f6',
+        borderRadius: '50%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 700,
+        fontSize: 13,
+        flexShrink: 0,
+        color: 'white',
+    },
+    userText: {
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+    },
+    userName: {
+        fontSize: 13,
+        fontWeight: 600,
+        color: 'white',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+    },
+    userRole: {
+        fontSize: 11,
+        color: '#94a3b8',
+    },
+    logoutBtn: {
+        background: 'transparent',
+        border: '1px solid #334155',
+        color: '#94a3b8',
+        cursor: 'pointer',
+        fontSize: 15,
+        padding: '6px 10px',
+        borderRadius: 6,
+        flexShrink: 0,
+    },
+};
+
+export default Sidebar;

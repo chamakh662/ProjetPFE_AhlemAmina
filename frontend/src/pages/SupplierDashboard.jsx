@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-import Sidebar from '../components/Suplier/Sidebar';
-import AddProductTab from '../components/Shared/AddProcuctTab';
+import Sidebar from '../components/Shared/Sidebar';   // ✅ modifié
+import AddProductTab from '../components/Shared/AddProductTab';
 import MyProductsTab from '../components/Suplier/ MyProductsTab';
-import Notifications from '../components/Suplier/Notifications';
+import Notifications, { useUnreadCount } from '../components/Suplier/Notifications'; // ✅ hook importé
 import Messagerie from '../components/Shared/Messagerie';
 
 const SupplierDashboard = () => {
@@ -23,12 +23,17 @@ const SupplierDashboard = () => {
         setActiveTab('myProducts'); // redirige vers mes produits
     };
 
+    // ✅ récupérer le nombre de notifications non lues
+    const unreadCount = useUnreadCount(user?.id);
+
     return (
         <div style={styles.container}>
             <Sidebar
+                role="fournisseur"              // ✅ ajouté
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
-                handleLogout={handleLogout}
+                onLogout={handleLogout}         // ✅ renommé pour cohérence
+                unreadCount={unreadCount}       // ✅ ajouté
                 user={user}
             />
 

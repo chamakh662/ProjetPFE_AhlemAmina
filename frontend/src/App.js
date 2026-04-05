@@ -7,7 +7,7 @@ import Register from './components/Register';
 import ResetPassword from './components/ResetPassword';
 import ConsumerDashboard from './components/dashboard/ConsumerDashboard';
 import SupplierDashboard from './pages/SupplierDashboard';
-import AdminDashboard from './components/dashboard/AdminDashboard';
+import AdminDashboard from './pages/AdminDashboard';
 import AgentDashboard from './pages/AgentDashboard';
 
 const RoleBasedRedirect = () => {
