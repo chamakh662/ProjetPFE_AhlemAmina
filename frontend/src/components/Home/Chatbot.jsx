@@ -1,76 +1,100 @@
-// src/components/ChatBot.jsx
+
 import React, { useState, useRef, useEffect } from 'react';
 
-const ChatBot = () => {
-    const [isOpen, setIsOpen] = useState(false); // pour ouvrir/fermer la fenêtre du chat
+const Chatbot = ({ user, addToHistory }) => {
+    const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([
-        { from: 'bot', text: 'Bonjour ! Je suis ton assistant. Comment puis-je t’aider ?' }
+        {
+            from: 'bot',
+            text: `Bonjour ${user?.prenom || ''} ! Je suis votre assistant BioScan. Posez-moi vos questions sur les produits alimentaires.`,
+        },
     ]);
     const [input, setInput] = useState('');
+    const [isTyping, setIsTyping] = useState(false);
     const messagesEndRef = useRef(null);
 
-    // Scroll automatique vers le dernier message
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
+    }, [messages, isTyping]);
 
-    // Simuler une réponse du bot
-    const botReply = (userMessage) => {
-        const reply = `🤖 Tu as dit : "${userMessage}"`; // exemple simple
-        setTimeout(() => {
-            setMessages(prev => [...prev, { from: 'bot', text: reply }]);
-        }, 800);
+    // Remplacez cette fonction par un appel à votre API IA backend
+    const botReply = async (userMessage) => {
+        setIsTyping(true);
+        await new Promise((r) => setTimeout(r, 800));
+        setIsTyping(false);
+        setMessages((prev) => [
+            ...prev,
+            {
+                from: 'bot',
+                text: `Je cherche des informations sur : "${userMessage}". (Connectez cette fonction à votre API IA)`,
+            },
+        ]);
     };
 
     const handleSend = () => {
-        if (!input.trim()) return;
-        setMessages(prev => [...prev, { from: 'user', text: input }]);
-        botReply(input);
+        const text = input.trim();
+        if (!text) return;
+        setMessages((prev) => [...prev, { from: 'user', text }]);
+        // Enregistre dans l'historique de recherche si disponible
+        if (typeof addToHistory === 'function') addToHistory(text);
+        botReply(text);
         setInput('');
     };
 
-    const handleKeyPress = (e) => {
-        if (e.key === 'Enter') handleSend();
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+        }
     };
 
     return (
         <div style={styles.chatContainer}>
-            {/* Bouton pour ouvrir/fermer le chat */}
-            <button style={styles.toggleBtn} onClick={() => setIsOpen(!isOpen)}>
+            <button style={styles.toggleBtn} onClick={() => setIsOpen((o) => !o)} title="Assistant BioScan">
                 {isOpen ? '✕' : '💬'}
             </button>
 
             {isOpen && (
                 <div style={styles.chatBox}>
-                    <div style={styles.header}>ChatBot</div>
+                    <div style={styles.header}>
+                        <span>🌿 Assistant BioScan</span>
+                        <button onClick={() => setIsOpen(false)} style={styles.closeBtn}>✕</button>
+                    </div>
 
                     <div style={styles.messages}>
-                        {messages.map((msg, index) => (
+                        {messages.map((msg, i) => (
                             <div
-                                key={index}
+                                key={i}
                                 style={{
                                     ...styles.message,
                                     alignSelf: msg.from === 'user' ? 'flex-end' : 'flex-start',
-                                    backgroundColor: msg.from === 'user' ? '#4dabf7' : '#e5e5e5',
-                                    color: msg.from === 'user' ? '#fff' : '#000'
+                                    backgroundColor: msg.from === 'user' ? '#16a34a' : '#f3f4f6',
+                                    color: msg.from === 'user' ? '#fff' : '#1f2937',
                                 }}
                             >
                                 {msg.text}
                             </div>
                         ))}
+                        {isTyping && (
+                            <div style={{ ...styles.message, alignSelf: 'flex-start', backgroundColor: '#f3f4f6', color: '#6b7280' }}>
+                                ···
+                            </div>
+                        )}
                         <div ref={messagesEndRef} />
                     </div>
 
                     <div style={styles.inputArea}>
                         <input
                             type="text"
-                            placeholder="Écris un message..."
+                            placeholder="Posez votre question..."
                             value={input}
-                            onChange={e => setInput(e.target.value)}
-                            onKeyDown={handleKeyPress}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={handleKeyDown}
                             style={styles.input}
                         />
-                        <button onClick={handleSend} style={styles.sendBtn}>➡️</button>
+                        <button onClick={handleSend} style={styles.sendBtn} disabled={!input.trim()}>
+                            ➤
+                        </button>
                     </div>
                 </div>
             )}
@@ -78,36 +102,89 @@ const ChatBot = () => {
     );
 };
 
-// Styles inline simples
 const styles = {
-    chatContainer: { position: 'fixed', bottom: 20, right: 20, zIndex: 1000 },
+    chatContainer: { position: 'fixed', bottom: 24, right: 24, zIndex: 1000 },
     toggleBtn: {
-        backgroundColor: '#4dabf7',
+        backgroundColor: '#16a34a',
         color: '#fff',
         border: 'none',
         borderRadius: '50%',
-        width: 60,
-        height: 60,
+        width: 56,
+        height: 56,
         cursor: 'pointer',
-        fontSize: 24
+        fontSize: 22,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
     },
     chatBox: {
-        width: 300,
-        maxHeight: 400,
+        position: 'absolute',
+        bottom: 68,
+        right: 0,
+        width: 320,
+        maxHeight: 420,
         backgroundColor: '#fff',
-        borderRadius: 8,
-        boxShadow: '0 4px 10px rgba(0,0,0,0.2)',
+        borderRadius: 12,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
         display: 'flex',
         flexDirection: 'column',
-        marginTop: 10,
-        overflow: 'hidden'
+        overflow: 'hidden',
+        border: '1px solid #e5e7eb',
     },
-    header: { backgroundColor: '#4dabf7', color: '#fff', padding: 10, fontWeight: 'bold' },
-    messages: { flex: 1, padding: 10, display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto' },
-    message: { padding: 8, borderRadius: 8, maxWidth: '80%' },
-    inputArea: { display: 'flex', borderTop: '1px solid #ccc' },
-    input: { flex: 1, padding: 8, border: 'none', outline: 'none' },
-    sendBtn: { padding: '0 10px', border: 'none', backgroundColor: '#4dabf7', color: '#fff', cursor: 'pointer' }
+    header: {
+        backgroundColor: '#16a34a',
+        color: '#fff',
+        padding: '10px 14px',
+        fontWeight: 600,
+        fontSize: 14,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    closeBtn: {
+        background: 'none',
+        border: 'none',
+        color: '#fff',
+        cursor: 'pointer',
+        fontSize: 16,
+        lineHeight: 1,
+    },
+    messages: {
+        flex: 1,
+        padding: 12,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+        overflowY: 'auto',
+    },
+    message: {
+        padding: '8px 12px',
+        borderRadius: 10,
+        maxWidth: '82%',
+        fontSize: 13,
+        lineHeight: 1.5,
+    },
+    inputArea: {
+        display: 'flex',
+        borderTop: '1px solid #e5e7eb',
+        padding: 4,
+        gap: 4,
+    },
+    input: {
+        flex: 1,
+        padding: '8px 10px',
+        border: '1px solid #e5e7eb',
+        borderRadius: 8,
+        outline: 'none',
+        fontSize: 13,
+    },
+    sendBtn: {
+        padding: '0 12px',
+        border: 'none',
+        backgroundColor: '#16a34a',
+        color: '#fff',
+        cursor: 'pointer',
+        borderRadius: 8,
+        fontSize: 16,
+    },
 };
 
-export default ChatBot;
+export default Chatbot;

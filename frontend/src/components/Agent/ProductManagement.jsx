@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import AddProductTab from '../Shared/AddProductTab';
 
 import UpdateForm from './UpdateForm';
-import ProductCard from './ProductCard';
+import ProductCard from './AgentProductCard';
 import StoreSection from './StoreSection';
 
 // ==================== STYLES COMMUNS ====================

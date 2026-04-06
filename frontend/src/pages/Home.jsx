@@ -1,24 +1,29 @@
 // src/pages/Home.jsx
+//
+// Page unique partagée par le visiteur ET le consommateur.
+// Les fonctionnalités consommateur (favoris, historique, commentaires,
+// profil, chatbot) sont montées conditionnellement selon user?.role.
+//
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-// Composants
+// Composants communs
 import Navbar from '../components/Home/Navbar';
 import HeroSection from '../components/Home/HeroSection';
 import SearchSection from '../components/Home/SearchSection';
 import ScannerSection from '../components/Home/ScannerSection';
 import ProductsSection from '../components/Home/ProductsSection';
-import Chatbot from '../components/Home/Chatbot';
 import Footer from '../components/Home/Footer';
 
-// Modals
+// Composants consommateur uniquement
+import Chatbot from '../components/Home/Chatbot';
 import FavoritesModal from '../components/modals/FavoritesModal';
 import HistoryModal from '../components/modals/HistoryModal';
 import CommentsModal from '../components/modals/CommentsModal';
 import ProfileModal from '../components/modals/ProfileModal';
 
-// Hooks personnalisés
+// Hooks
 import useFavorites from '../hooks/useFavorites';
 import useHistory from '../hooks/useHistory';
 import useComments from '../hooks/useComments';
@@ -27,54 +32,66 @@ const Home = () => {
   const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
 
-  // États Modals
+  const isConsommateur = user?.role === 'consommateur';
+
+  // ── Modals ─────────────────────────────────────────────────────────────────
   const [showFavorites, setShowFavorites] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
 
-  // Produits
+  // ── Produits ───────────────────────────────────────────────────────────────
   const [allProducts, setAllProducts] = useState([]);
   const [displayProducts, setDisplayProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [barcode, setBarcode] = useState('');
 
-  // Chatbot
-  const [chatMessage, setChatMessage] = useState('');
-  const [chatHistory, setChatHistory] = useState([
-    { sender: 'bot', text: 'Bonjour ! Je suis votre assistant BioScan.' }
-  ]);
+  // ── Hooks consommateur ─────────────────────────────────────────────────────
+  // Les hooks sont toujours appelés (règle des hooks React),
+  // mais ils retournent des valeurs vides si le rôle n'est pas consommateur.
+  const { favorites, isFavorite, addFavorite, removeFavorite } = useFavorites(
+    user?.id,
+    user?.role
+  );
+  const { searchHistory, addToHistory, removeFromHistory, clearHistory } = useHistory(
+    isConsommateur ? user?.id : null
+  );
+  const {
+    comments,
+    getProductComments,
+    getAverageRating,
+    addComment,
+    editComment,
+    deleteComment,
+  } = useComments();
 
-  // ✅ Hooks personnalisés — passe userId ET userRole à useFavorites
-  const { favorites, isFavorite, addFavorite, removeFavorite } = useFavorites(user?.id, user?.role);
-  const { searchHistory, addToHistory, removeFromHistory, clearHistory } = useHistory(user?.id);
-  const { comments, getProductComments, getAverageRating, addComment, editComment, deleteComment } = useComments();
+  // ── Redirection admin ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (user?.role === 'administrateur') {
+      navigate('/dashboard/AdminDashboard', { replace: true });
+    }
+  }, [user, navigate]);
 
-  // Chargement produits depuis API
+  // ── Chargement produits ────────────────────────────────────────────────────
   useEffect(() => {
     fetch('http://localhost:5000/api/produits?status=approved')
-      .then(res => res.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         setAllProducts(data);
         setDisplayProducts(data);
       })
       .catch(() => console.log('API indisponible'));
   }, []);
 
-  // Redirection admin
-  useEffect(() => {
-    if (user?.role === 'administrateur') navigate('/dashboard/AdminDashboard', { replace: true });
-  }, [user, navigate]);
-
-  // ✅ Réinitialise displayProducts quand searchQuery est effacé
+  // Réinitialise displayProducts quand la recherche est effacée
   useEffect(() => {
     if (!searchQuery.trim()) {
       setDisplayProducts(allProducts);
     }
   }, [searchQuery, allProducts]);
 
-  // ✅ Fonction de recherche par nom de produit
+  // ── Recherche ──────────────────────────────────────────────────────────────
   const handleSearch = (e) => {
     e.preventDefault();
     const query = searchQuery.trim().toLowerCase();
@@ -84,45 +101,53 @@ const Home = () => {
       return;
     }
 
-    const results = allProducts.filter(p =>
-      p.nom?.toLowerCase().includes(query) ||
-      p.name?.toLowerCase().includes(query) ||
-      p.titre?.toLowerCase().includes(query) ||
-      p.libelle?.toLowerCase().includes(query)
+    const results = allProducts.filter(
+      (p) =>
+        p.nom?.toLowerCase().includes(query) ||
+        p.name?.toLowerCase().includes(query) ||
+        p.titre?.toLowerCase().includes(query) ||
+        p.libelle?.toLowerCase().includes(query)
     );
 
     setDisplayProducts(results);
 
-    // Ajoute à l'historique uniquement si des résultats sont trouvés
-    if (results.length > 0) {
+    // Historique uniquement pour les consommateurs et si résultats trouvés
+    if (isConsommateur && results.length > 0) {
       addToHistory(searchQuery.trim());
     }
   };
 
-  // Ouvre le modal commentaires
+  // ── Commentaires ───────────────────────────────────────────────────────────
   const handleOpenComments = (product) => {
     setSelectedProduct(product);
     setShowComments(true);
   };
 
-  // Fermeture propre du modal commentaires
   const handleCloseComments = () => {
     setShowComments(false);
     setSelectedProduct(null);
+  };
+
+  // ── Déconnexion ────────────────────────────────────────────────────────────
+  const handleLogout = () => {
+    logout();
+    navigate('/');
   };
 
   return (
     <div>
       <Navbar
         user={user}
-        favoritesCount={favorites.length}
-        onFavoritesClick={() => setShowFavorites(true)}
-        onHistoryClick={() => setShowHistory(true)}
+        // Ces props sont ignorées par la Navbar si l'utilisateur n'est pas consommateur
+        favoritesCount={isConsommateur ? favorites.length : 0}
+        onFavoritesClick={() => isConsommateur && setShowFavorites(true)}
+        onHistoryClick={() => isConsommateur && setShowHistory(true)}
         onProfileClick={() => setShowProfile(true)}
-        onLogout={() => { logout(); navigate('/'); }}
+        onLogout={handleLogout}
       />
 
-      {showFavorites && (
+      {/* ── Modals consommateur ────────────────────────────────────────── */}
+      {isConsommateur && showFavorites && (
         <FavoritesModal
           favorites={favorites}
           onClose={() => setShowFavorites(false)}
@@ -130,12 +155,16 @@ const Home = () => {
         />
       )}
 
-      {showHistory && (
+      {isConsommateur && showHistory && (
         <HistoryModal
           history={searchHistory}
           onClose={() => setShowHistory(false)}
           onRemoveItem={removeFromHistory}
           onClearAll={clearHistory}
+          onUseItem={(item) => {
+            setSearchQuery(item.query);
+            setShowHistory(false);
+          }}
         />
       )}
 
@@ -156,41 +185,42 @@ const Home = () => {
           user={user}
           onClose={() => setShowProfile(false)}
           onUpdateProfile={updateUser}
-          onLogout={() => { logout(); navigate('/'); }}
+          onLogout={handleLogout}
         />
       )}
 
+      {/* ── Sections communes ──────────────────────────────────────────── */}
       <HeroSection />
+
       <SearchSection
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         displayProducts={displayProducts}
         handleSearch={handleSearch}
-        addToHistory={addToHistory}
       />
-      <ScannerSection barcode={barcode} setBarcode={setBarcode} />
+
+      <ScannerSection
+        barcode={barcode}
+        setBarcode={setBarcode}
+        handleBarcodeScan={() => {
+          /* TODO: implémenter le scan */
+        }}
+      />
 
       <ProductsSection
         displayProducts={displayProducts}
+        user={user}
         handleAddFavorite={addFavorite}
         handleOpenComments={handleOpenComments}
         isFavorite={isFavorite}
         getAverageRating={getAverageRating}
         getProductComments={getProductComments}
-        user={user}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
       />
 
-      {/* Chatbot uniquement pour les consommateurs */}
-      {user?.role === 'consommateur' && (
-        <Chatbot
-          chatMessage={chatMessage}
-          setChatMessage={setChatMessage}
-          chatHistory={chatHistory}
-          setChatHistory={setChatHistory}
-          user={user}
-          addToHistory={addToHistory}
-        />
-      )}
+      {/* ── Chatbot — consommateur uniquement ─────────────────────────── */}
+      {isConsommateur && <Chatbot user={user} addToHistory={addToHistory} />}
 
       <Footer />
     </div>

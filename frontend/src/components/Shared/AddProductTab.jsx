@@ -188,13 +188,6 @@ const AdresseAutocomplete = ({ value, onChange, onSelectCoords, placeholder }) =
     );
 };
 
-// ─── Composant principal partagé ─────────────────────────────────────────────
-/**
- * Props :
- *  - user          : objet utilisateur connecté { id, nom, ... }
- *  - role          : 'agent' | 'fournisseur'
- *  - onSuccess     : callback appelé après soumission réussie
- */
 const AddProductTab = ({ user, role = 'fournisseur', onSuccess }) => {
 
     // ─── Config selon le rôle ─────────────────────────────────────────────────
@@ -219,7 +212,7 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess }) => {
 
     // ─── State ────────────────────────────────────────────────────────────────
     const [productForm, setProductForm] = useState({
-        nom: '', description: '', code_barre: '', origine: '',
+        nom: '', marque: '', code_barre: '', origine: '',
         ingredients: '', image: '', pointsDeVente: []
     });
 
@@ -230,7 +223,7 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess }) => {
 
     const canSubmit =
         productForm.nom?.trim() &&
-        productForm.description?.trim() &&
+        productForm.marque?.trim() &&
         productForm.code_barre?.trim() &&
         productForm.origine?.trim();
 
@@ -316,7 +309,7 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess }) => {
             if (!res.ok) throw new Error(data.message || 'Erreur lors de la soumission');
 
             // Reset formulaire
-            setProductForm({ nom: '', description: '', code_barre: '', origine: '', ingredients: '', image: '', pointsDeVente: [] });
+            setProductForm({ nom: '', marque: '', code_barre: '', origine: '', ingredients: '', image: '', pointsDeVente: [] });
             setPointsDeVente([]);
 
             if (onSuccess) {
@@ -346,9 +339,9 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess }) => {
                 />
 
                 <textarea
-                    placeholder="Description *"
-                    value={productForm.description}
-                    onChange={e => setProductForm({ ...productForm, description: e.target.value })}
+                    placeholder="Marque *"
+                    value={productForm.marque}
+                    onChange={e => setProductForm({ ...productForm, marque: e.target.value })}
                     style={styles.textarea}
                 />
 

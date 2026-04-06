@@ -5,7 +5,7 @@ const produitSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    description: {
+    marque: {
         type: String
     },
     image: {

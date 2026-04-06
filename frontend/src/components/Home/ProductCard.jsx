@@ -5,27 +5,25 @@ const ProductCard = ({
     produit,
     onComment,
     onFavorite,
-    isFavorite,
-    averageRating,
-    commentCount,
-    localisation,
+    isFavorite = false,
     user
 }) => {
-    // ✅ Utilise _id (champ réel MongoDB)
-    const productId = produit?._id || produit?.id_produit || produit?.id;
+    // Extraction des données
+    const nom = produit?.nom || 'Produit sans nom';
 
-    const mapsUrl = localisation?.lat && localisation?.lng
-        ? `https://www.google.com/maps?q=${localisation.lat},${localisation.lng}`
+    // Gestion intelligente de l'image
+    const imageUrl = produit?.image
+        ? (produit.image.startsWith('http')
+            ? produit.image
+            : `http://localhost:5000${produit.image.startsWith('/') ? '' : '/'}${produit.image}`)
         : null;
+
+    // Priorité : Marque si elle existe, sinon Origine
+    const sousTitre = produit?.marque || produit?.brand || produit?.origine || 'Non spécifié';
 
     const isConsommateur = user?.role === 'consommateur';
 
     const handleFavorite = () => {
-        console.log('=== FAVORIS CLIQUÉ ===');
-        console.log('produit:', produit);
-        console.log('productId:', productId);
-        console.log('user:', user);
-
         if (!user) {
             alert('Vous devez être connecté pour ajouter un favori.');
             return;
@@ -39,48 +37,38 @@ const ProductCard = ({
 
     return (
         <div style={styles.card}>
-            {produit.image && (
+            {/* Image du produit */}
+            {imageUrl ? (
                 <img
-                    src={produit.image}
-                    alt={produit.nom}
+                    src={imageUrl}
+                    alt={nom}
                     style={styles.image}
+                    onError={(e) => {
+                        console.log("❌ Erreur chargement image pour :", nom);
+                        console.log("URL tentée :", imageUrl);
+                        e.target.onerror = null;
+                        e.target.src = 'https://via.placeholder.com/300x200?text=Pas+d\'image';
+                    }}
                 />
+            ) : (
+                <div style={styles.noImage}>📦</div>
             )}
+            {/* Nom */}
+            <h3 style={styles.name}>{nom}</h3>
 
-            <h3 style={styles.name}>{produit.nom}</h3>
-            <p style={styles.description}>{produit.description}</p>
+            {/* Marque ou Origine */}
+            <p style={styles.subtitle}>{sousTitre}</p>
 
-            {averageRating > 0 && (
-                <div style={styles.rating}>
-                    {'★'.repeat(Math.round(averageRating))}
-                    {'☆'.repeat(5 - Math.round(averageRating))}
-                    <span style={{ marginLeft: 4, fontSize: 12, color: '#888' }}>
-                        ({commentCount} avis)
-                    </span>
-                </div>
-            )}
-
-            {mapsUrl && (
-                <a href={mapsUrl} target="_blank" rel="noreferrer" style={styles.mapsLink}>
-                    🗺️ Voir le point de vente
-                </a>
-            )}
-
+            {/* Actions */}
             <div style={styles.actions}>
                 <button
                     style={{
                         ...styles.btnFavorite,
-                        backgroundColor: isFavorite ? '#e11d48' : '#ff6b6b',
-                        opacity: (!user || !isConsommateur) ? 0.6 : 1,
+                        backgroundColor: isFavorite ? '#e11d48' : '#ef4444'
                     }}
                     onClick={handleFavorite}
-                    title={
-                        !user ? 'Connectez-vous pour ajouter aux favoris'
-                        : !isConsommateur ? 'Réservé aux consommateurs'
-                        : isFavorite ? 'Déjà dans vos favoris' : 'Ajouter aux favoris'
-                    }
                 >
-                    {isFavorite ? '❤️ Favori' : '🤍 Favoris'}
+                    {isFavorite ? '❤️ Retirer' : '🤍 Favori'}
                 </button>
 
                 <button
@@ -96,27 +84,69 @@ const ProductCard = ({
 
 const styles = {
     card: {
-        border: '1px solid #e5e7eb', borderRadius: 10, padding: 16,
-        backgroundColor: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-        display: 'flex', flexDirection: 'column', gap: 8
+        backgroundColor: '#ffffff',
+        borderRadius: '12px',
+        overflow: 'hidden',
+        boxShadow: '0 4px 15px rgba(0, 0, 0, 0.07)',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
     },
-    image: { width: '100%', height: 150, objectFit: 'cover', borderRadius: 6 },
-    name: { margin: '8px 0 4px 0', fontSize: '1rem', fontWeight: 700, color: '#1f2937' },
-    description: { fontSize: 13, color: '#6b7280', margin: 0 },
-    rating: { color: '#fbbf24', fontSize: 16 },
-    mapsLink: {
-        display: 'inline-flex', alignItems: 'center', gap: 5,
-        color: '#1976D2', fontSize: 13, fontWeight: 600, textDecoration: 'none'
+    image: {
+        width: '100%',
+        height: '190px',
+        objectFit: 'cover',
     },
-    actions: { display: 'flex', justifyContent: 'space-between', marginTop: 8, gap: 8 },
+    noImage: {
+        width: '100%',
+        height: '190px',
+        backgroundColor: '#f3f4f6',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '3.5rem',
+        color: '#cbd5e1',
+    },
+    name: {
+        fontSize: '1.15rem',
+        fontWeight: '700',
+        color: '#1f2937',
+        margin: '14px 14px 6px 14px',
+        lineHeight: 1.3,
+    },
+    subtitle: {
+        fontSize: '0.95rem',
+        color: '#6b7280',
+        margin: '0 14px 16px 14px',
+        fontWeight: '500',
+    },
+    actions: {
+        marginTop: 'auto',
+        padding: '12px 14px 16px',
+        display: 'flex',
+        gap: '10px',
+        borderTop: '1px solid #f1f5f9',
+    },
     btnFavorite: {
-        flex: 1, padding: '7px 12px', color: '#fff',
-        border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13
+        flex: 1,
+        padding: '10px',
+        border: 'none',
+        borderRadius: '8px',
+        color: '#fff',
+        fontWeight: '600',
+        fontSize: '0.93rem',
+        cursor: 'pointer',
     },
     btnComment: {
-        flex: 1, padding: '7px 12px', backgroundColor: '#4dabf7',
-        color: '#fff', border: 'none', borderRadius: 6,
-        cursor: 'pointer', fontWeight: 600, fontSize: 13
+        flex: 1,
+        padding: '10px',
+        backgroundColor: '#3b82f6',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '8px',
+        fontWeight: '600',
+        fontSize: '0.93rem',
+        cursor: 'pointer',
     }
 };
 
