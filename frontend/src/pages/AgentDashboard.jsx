@@ -4,10 +4,10 @@ import { useNavigate } from 'react-router-dom';
 
 import Sidebar from '../components/Shared/Sidebar';   // ✅ modifié
 import OverviewTab from '../components/Agent/OverviewTabl';
-import ProductsTab from '../components/Agent/ProductsTab';
 import ProfileTab from '../components/Agent/ProfileTab';
 import AiAnalysisTab from '../components/Agent/AiAnalysisTab';
 import Messagerie from '../components/Shared/Messagerie';
+import ProductManagement from '../components/Agent/ProductManagement';
 
 const AgentDashboard = () => {
   const { user, logout, updateUser } = useAuth();
@@ -23,7 +23,7 @@ const AgentDashboard = () => {
     switch (activeTab) {
       case 'overview': return <OverviewTab />;
       case 'notifications': return <Messagerie user={user} role="agent" />;
-      case 'products': return <ProductsTab />;
+      case 'products': return <ProductManagement />;
       case 'aiAnalysis': return <AiAnalysisTab />;
       case 'profile': return <ProfileTab user={user} updateUser={updateUser} />;
       default: return <OverviewTab />;
