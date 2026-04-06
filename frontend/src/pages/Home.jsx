@@ -67,6 +67,38 @@ const Home = () => {
     if (user?.role === 'administrateur') navigate('/dashboard/AdminDashboard', { replace: true });
   }, [user, navigate]);
 
+  // ✅ Réinitialise displayProducts quand searchQuery est effacé
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setDisplayProducts(allProducts);
+    }
+  }, [searchQuery, allProducts]);
+
+  // ✅ Fonction de recherche par nom de produit
+  const handleSearch = (e) => {
+    e.preventDefault();
+    const query = searchQuery.trim().toLowerCase();
+
+    if (!query) {
+      setDisplayProducts(allProducts);
+      return;
+    }
+
+    const results = allProducts.filter(p =>
+      p.nom?.toLowerCase().includes(query) ||
+      p.name?.toLowerCase().includes(query) ||
+      p.titre?.toLowerCase().includes(query) ||
+      p.libelle?.toLowerCase().includes(query)
+    );
+
+    setDisplayProducts(results);
+
+    // Ajoute à l'historique uniquement si des résultats sont trouvés
+    if (results.length > 0) {
+      addToHistory(searchQuery.trim());
+    }
+  };
+
   // Ouvre le modal commentaires
   const handleOpenComments = (product) => {
     setSelectedProduct(product);
@@ -133,6 +165,7 @@ const Home = () => {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         displayProducts={displayProducts}
+        handleSearch={handleSearch}
         addToHistory={addToHistory}
       />
       <ScannerSection barcode={barcode} setBarcode={setBarcode} />
@@ -144,7 +177,7 @@ const Home = () => {
         isFavorite={isFavorite}
         getAverageRating={getAverageRating}
         getProductComments={getProductComments}
-        user={user}  // ✅ passe l'utilisateur à ProductsSection → ProductCard
+        user={user}
       />
 
       {/* Chatbot uniquement pour les consommateurs */}
