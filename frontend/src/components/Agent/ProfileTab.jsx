@@ -254,10 +254,10 @@ const styles = {
     inputWrapper: { position: 'relative', marginTop: '5px' },
     inputWithIcon: { width: '100%', padding: '12px 44px 12px 12px', border: '1px solid #ddd', borderRadius: '5px', boxSizing: 'border-box', WebkitAppearance: 'none', MozAppearance: 'none' },
     eyeButton: { position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: '0.7', transition: 'opacity 0.2s' },
-    submitButton: { backgroundColor: '#FF9800', color: 'white', padding: '12px 30px', border: 'none', borderRadius: '5px', cursor: 'pointer' },
+    submitButton: { backgroundColor: '#448bf7', color: 'white', padding: '12px 30px', border: 'none', borderRadius: '5px', cursor: 'pointer' },
     passwordSection: { marginTop: '30px' },
     passwordTitle: { marginBottom: '10px', color: '#333' },
-    errorMessage: { color: '#e53935', marginBottom: '12px', fontWeight: '500' },
+    errorMessage: { color: '#448bf7', marginBottom: '12px', fontWeight: '500' },
     successMessage: { color: '#43a047', marginBottom: '12px', fontWeight: '500' }
 };
 

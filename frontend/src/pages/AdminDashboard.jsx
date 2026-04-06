@@ -13,11 +13,33 @@ const AdminDashboard = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('dashboard');
     const [allUsers, setAllUsers] = useState([]);
+    const [loadingUsers, setLoadingUsers] = useState(false);
 
-    // ── Charger les utilisateurs ──────────────────────────────────────────
+    // ✅ Charger les utilisateurs depuis l'API (et non localStorage)
     useEffect(() => {
-        const stored = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
-        setAllUsers(stored);
+        const fetchUsers = async () => {
+            setLoadingUsers(true);
+            try {
+                // ✅ Envoie le token JWT stocké lors du login
+                const token = localStorage.getItem('token');
+                const res = await fetch('http://localhost:5000/api/users', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+                if (!res.ok) throw new Error(`Erreur ${res.status}`);
+                const data = await res.json();
+                setAllUsers(Array.isArray(data) ? data : []);
+            } catch (err) {
+                console.error('Erreur chargement users:', err.message);
+                setAllUsers([]);
+            } finally {
+                setLoadingUsers(false);
+            }
+        };
+
+        fetchUsers();
     }, []);
 
     const handleLogout = () => { logout(); navigate('/'); };
@@ -27,7 +49,7 @@ const AdminDashboard = () => {
         total: allUsers.length,
         consommateur: allUsers.filter(u => u.role === 'consommateur').length,
         fournisseur: allUsers.filter(u => u.role === 'fournisseur').length,
-        agent: allUsers.filter(u => u.role === 'agent').length,
+        agent: allUsers.filter(u => u.role === 'agent' || u.role === 'agent_saisie').length,
         administrateur: allUsers.filter(u => u.role === 'administrateur').length,
     };
 
@@ -79,6 +101,7 @@ const AdminDashboard = () => {
                         allUsers={allUsers}
                         setAllUsers={setAllUsers}
                         statsByRole={statsByRole}
+                        loading={loadingUsers}
                     />
                 )}
                 {activeTab === 'products' && (
@@ -103,7 +126,7 @@ const styles = {
         flex: 1,
         padding: '2rem',
         overflowY: 'auto',
-        minWidth: 0, // ✅ évite le débordement flex
+        minWidth: 0,
     },
     header: {
         display: 'flex',

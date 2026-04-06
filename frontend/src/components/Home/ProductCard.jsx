@@ -1,56 +1,90 @@
-// src/components/ProductCard.jsx
+// src/components/Home/ProductCard.jsx
 import React from 'react';
 
-const ProductCard = ({ produit, onComment, onFavorite }) => {
+const ProductCard = ({
+    produit,
+    onComment,
+    onFavorite,
+    isFavorite,
+    averageRating,
+    commentCount,
+    localisation,
+    user
+}) => {
+    // ✅ Utilise _id (champ réel MongoDB)
+    const productId = produit?._id || produit?.id_produit || produit?.id;
+
+    const mapsUrl = localisation?.lat && localisation?.lng
+        ? `https://www.google.com/maps?q=${localisation.lat},${localisation.lng}`
+        : null;
+
+    const isConsommateur = user?.role === 'consommateur';
+
+    const handleFavorite = () => {
+        console.log('=== FAVORIS CLIQUÉ ===');
+        console.log('produit:', produit);
+        console.log('productId:', productId);
+        console.log('user:', user);
+
+        if (!user) {
+            alert('Vous devez être connecté pour ajouter un favori.');
+            return;
+        }
+        if (!isConsommateur) {
+            alert('Seuls les consommateurs peuvent ajouter des favoris.');
+            return;
+        }
+        onFavorite(produit);
+    };
+
     return (
-        <div
-            style={{
-                border: '1px solid #ccc',
-                borderRadius: 8,
-                padding: 16,
-                margin: 10,
-                width: 250,
-                boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
-            }}
-        >
-            {/* Image du produit */}
+        <div style={styles.card}>
             {produit.image && (
                 <img
                     src={produit.image}
                     alt={produit.nom}
-                    style={{ width: '100%', height: 150, objectFit: 'cover', borderRadius: 4 }}
+                    style={styles.image}
                 />
             )}
 
-            {/* Nom et description */}
-            <h3 style={{ margin: '10px 0 5px 0' }}>{produit.nom}</h3>
-            <p style={{ fontSize: 14, color: '#555' }}>{produit.description}</p>
+            <h3 style={styles.name}>{produit.nom}</h3>
+            <p style={styles.description}>{produit.description}</p>
 
-            {/* Actions */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10 }}>
+            {averageRating > 0 && (
+                <div style={styles.rating}>
+                    {'★'.repeat(Math.round(averageRating))}
+                    {'☆'.repeat(5 - Math.round(averageRating))}
+                    <span style={{ marginLeft: 4, fontSize: 12, color: '#888' }}>
+                        ({commentCount} avis)
+                    </span>
+                </div>
+            )}
+
+            {mapsUrl && (
+                <a href={mapsUrl} target="_blank" rel="noreferrer" style={styles.mapsLink}>
+                    🗺️ Voir le point de vente
+                </a>
+            )}
+
+            <div style={styles.actions}>
                 <button
                     style={{
-                        padding: '6px 12px',
-                        backgroundColor: '#ff6b6b',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: 4,
-                        cursor: 'pointer',
+                        ...styles.btnFavorite,
+                        backgroundColor: isFavorite ? '#e11d48' : '#ff6b6b',
+                        opacity: (!user || !isConsommateur) ? 0.6 : 1,
                     }}
-                    onClick={() => onFavorite(produit)}
+                    onClick={handleFavorite}
+                    title={
+                        !user ? 'Connectez-vous pour ajouter aux favoris'
+                        : !isConsommateur ? 'Réservé aux consommateurs'
+                        : isFavorite ? 'Déjà dans vos favoris' : 'Ajouter aux favoris'
+                    }
                 >
-                    ❤️ Favoris
+                    {isFavorite ? '❤️ Favori' : '🤍 Favoris'}
                 </button>
 
                 <button
-                    style={{
-                        padding: '6px 12px',
-                        backgroundColor: '#4dabf7',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: 4,
-                        cursor: 'pointer',
-                    }}
+                    style={styles.btnComment}
                     onClick={() => onComment(produit)}
                 >
                     💬 Avis
@@ -58,6 +92,32 @@ const ProductCard = ({ produit, onComment, onFavorite }) => {
             </div>
         </div>
     );
+};
+
+const styles = {
+    card: {
+        border: '1px solid #e5e7eb', borderRadius: 10, padding: 16,
+        backgroundColor: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+        display: 'flex', flexDirection: 'column', gap: 8
+    },
+    image: { width: '100%', height: 150, objectFit: 'cover', borderRadius: 6 },
+    name: { margin: '8px 0 4px 0', fontSize: '1rem', fontWeight: 700, color: '#1f2937' },
+    description: { fontSize: 13, color: '#6b7280', margin: 0 },
+    rating: { color: '#fbbf24', fontSize: 16 },
+    mapsLink: {
+        display: 'inline-flex', alignItems: 'center', gap: 5,
+        color: '#1976D2', fontSize: 13, fontWeight: 600, textDecoration: 'none'
+    },
+    actions: { display: 'flex', justifyContent: 'space-between', marginTop: 8, gap: 8 },
+    btnFavorite: {
+        flex: 1, padding: '7px 12px', color: '#fff',
+        border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13
+    },
+    btnComment: {
+        flex: 1, padding: '7px 12px', backgroundColor: '#4dabf7',
+        color: '#fff', border: 'none', borderRadius: 6,
+        cursor: 'pointer', fontWeight: 600, fontSize: 13
+    }
 };
 
 export default ProductCard;

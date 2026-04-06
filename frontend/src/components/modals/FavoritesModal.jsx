@@ -1,8 +1,12 @@
 // src/components/modals/FavoritesModal.jsx
 import React from 'react';
-import ProductCard from '../Home/ProductCard';
 
-const FavoritesModal = ({ favorites, onClose, onRemoveFavorite, onViewProduct, onComment }) => {
+const FavoritesModal = ({ favorites, onClose, onRemoveFavorite }) => {
+
+  // ✅ Récupère l'id réel du produit (_id MongoDB)
+  const getProductId = (product) =>
+    product?._id || product?.id_produit || product?.id;
+
   return (
     <div style={styles.overlay} onClick={onClose}>
       <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -19,21 +23,37 @@ const FavoritesModal = ({ favorites, onClose, onRemoveFavorite, onViewProduct, o
           </div>
         ) : (
           <div style={styles.list}>
-            {favorites.map((product) => (
-              <div key={product.id_produit} style={styles.card}>
-                <ProductCard
-                  produit={product}
-                  onFavorite={() => onRemoveFavorite(product.id_produit)}
-                  onComment={() => onComment(product)}
-                />
-                <button
-                  style={styles.viewBtn}
-                  onClick={() => onViewProduct(product)}
-                >
-                  👁️ Voir le produit
-                </button>
-              </div>
-            ))}
+            {favorites.map((product) => {
+              const productId = getProductId(product);
+              return (
+                <div key={productId} style={styles.card}>
+                  {/* Image */}
+                  {product.image && (
+                    <img
+                      src={product.image}
+                      alt={product.nom}
+                      style={styles.image}
+                    />
+                  )}
+
+                  {/* Infos produit */}
+                  <div style={styles.info}>
+                    <h4 style={styles.productName}>{product.nom}</h4>
+                    {product.description && (
+                      <p style={styles.productDesc}>{product.description}</p>
+                    )}
+                  </div>
+
+                  {/* Bouton supprimer */}
+                  <button
+                    style={styles.removeBtn}
+                    onClick={() => onRemoveFavorite(productId)}
+                  >
+                    🗑️ Retirer
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -62,11 +82,19 @@ const styles = {
   emptyIcon: { fontSize: '3rem', display: 'block', marginBottom: 8 },
   emptyText: { color: '#6b7280', fontSize: '1rem' },
   list: { display: 'flex', flexDirection: 'column', gap: 12 },
-  card: { display: 'flex', flexDirection: 'column' },
-  viewBtn: {
-    marginTop: 8, padding: '7px 14px', backgroundColor: '#3b82f6',
-    color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer',
-    fontWeight: '600', fontSize: '0.9rem',
+  card: {
+    display: 'flex', alignItems: 'center', gap: 12,
+    border: '1px solid #e5e7eb', borderRadius: 8, padding: 12,
+    backgroundColor: '#fafafa'
+  },
+  image: { width: 60, height: 60, objectFit: 'cover', borderRadius: 6, flexShrink: 0 },
+  info: { flex: 1 },
+  productName: { margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#1f2937' },
+  productDesc: { margin: '4px 0 0 0', fontSize: 12, color: '#6b7280' },
+  removeBtn: {
+    padding: '6px 12px', backgroundColor: '#fee2e2', color: '#dc2626',
+    border: '1px solid #fca5a5', borderRadius: 6, cursor: 'pointer',
+    fontWeight: 600, fontSize: 13, flexShrink: 0
   },
 };
 

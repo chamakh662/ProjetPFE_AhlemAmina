@@ -46,14 +46,14 @@ const Home = () => {
     { sender: 'bot', text: 'Bonjour ! Je suis votre assistant BioScan.' }
   ]);
 
-  // Hooks personnalisés
-  const { favorites, isFavorite, addFavorite, removeFavorite } = useFavorites(user?.id);
+  // ✅ Hooks personnalisés — passe userId ET userRole à useFavorites
+  const { favorites, isFavorite, addFavorite, removeFavorite } = useFavorites(user?.id, user?.role);
   const { searchHistory, addToHistory, removeFromHistory, clearHistory } = useHistory(user?.id);
   const { comments, getProductComments, getAverageRating, addComment, editComment, deleteComment } = useComments();
 
   // Chargement produits depuis API
   useEffect(() => {
-    fetch('/api/produits?status=approved')
+    fetch('http://localhost:5000/api/produits?status=approved')
       .then(res => res.json())
       .then(data => {
         setAllProducts(data);
@@ -67,6 +67,50 @@ const Home = () => {
     if (user?.role === 'administrateur') navigate('/dashboard/AdminDashboard', { replace: true });
   }, [user, navigate]);
 
+  // ✅ Réinitialise displayProducts quand searchQuery est effacé
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setDisplayProducts(allProducts);
+    }
+  }, [searchQuery, allProducts]);
+
+  // ✅ Fonction de recherche par nom de produit
+  const handleSearch = (e) => {
+    e.preventDefault();
+    const query = searchQuery.trim().toLowerCase();
+
+    if (!query) {
+      setDisplayProducts(allProducts);
+      return;
+    }
+
+    const results = allProducts.filter(p =>
+      p.nom?.toLowerCase().includes(query) ||
+      p.name?.toLowerCase().includes(query) ||
+      p.titre?.toLowerCase().includes(query) ||
+      p.libelle?.toLowerCase().includes(query)
+    );
+
+    setDisplayProducts(results);
+
+    // Ajoute à l'historique uniquement si des résultats sont trouvés
+    if (results.length > 0) {
+      addToHistory(searchQuery.trim());
+    }
+  };
+
+  // Ouvre le modal commentaires
+  const handleOpenComments = (product) => {
+    setSelectedProduct(product);
+    setShowComments(true);
+  };
+
+  // Fermeture propre du modal commentaires
+  const handleCloseComments = () => {
+    setShowComments(false);
+    setSelectedProduct(null);
+  };
+
   return (
     <div>
       <Navbar
@@ -78,26 +122,62 @@ const Home = () => {
         onLogout={() => { logout(); navigate('/'); }}
       />
 
-      {showFavorites && <FavoritesModal favorites={favorites} onClose={() => setShowFavorites(false)} onRemoveFavorite={removeFavorite} />}
-      {showHistory && <HistoryModal history={searchHistory} onClose={() => setShowHistory(false)} onRemoveItem={removeFromHistory} onClearAll={clearHistory} />}
-      {showComments && selectedProduct && <CommentsModal product={selectedProduct} comments={comments} user={user} onClose={() => setShowComments(false)} onAddComment={addComment} onEditComment={editComment} onDeleteComment={deleteComment} />}
-      {showProfile && user && <ProfileModal user={user} onClose={() => setShowProfile(false)} onUpdateProfile={updateUser} onLogout={() => { logout(); navigate('/'); }} />}
+      {showFavorites && (
+        <FavoritesModal
+          favorites={favorites}
+          onClose={() => setShowFavorites(false)}
+          onRemoveFavorite={removeFavorite}
+        />
+      )}
+
+      {showHistory && (
+        <HistoryModal
+          history={searchHistory}
+          onClose={() => setShowHistory(false)}
+          onRemoveItem={removeFromHistory}
+          onClearAll={clearHistory}
+        />
+      )}
+
+      {showComments && selectedProduct && (
+        <CommentsModal
+          product={selectedProduct}
+          comments={comments}
+          user={user}
+          onClose={handleCloseComments}
+          onAddComment={addComment}
+          onEditComment={editComment}
+          onDeleteComment={deleteComment}
+        />
+      )}
+
+      {showProfile && user && (
+        <ProfileModal
+          user={user}
+          onClose={() => setShowProfile(false)}
+          onUpdateProfile={updateUser}
+          onLogout={() => { logout(); navigate('/'); }}
+        />
+      )}
 
       <HeroSection />
       <SearchSection
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         displayProducts={displayProducts}
+        handleSearch={handleSearch}
         addToHistory={addToHistory}
       />
       <ScannerSection barcode={barcode} setBarcode={setBarcode} />
+
       <ProductsSection
         displayProducts={displayProducts}
         handleAddFavorite={addFavorite}
-        handleOpenComments={setSelectedProduct}
+        handleOpenComments={handleOpenComments}
         isFavorite={isFavorite}
         getAverageRating={getAverageRating}
         getProductComments={getProductComments}
+        user={user}
       />
 
       {/* Chatbot uniquement pour les consommateurs */}

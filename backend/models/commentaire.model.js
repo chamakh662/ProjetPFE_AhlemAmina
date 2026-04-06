@@ -7,6 +7,13 @@ const commentaireSchema = new mongoose.Schema({
         required: true
     },
 
+    note: {
+        type: Number,
+        min: 1,
+        max: 5,
+        default: 5
+    },
+
     date: {
         type: Date,
         default: Date.now

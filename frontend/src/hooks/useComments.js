@@ -1,69 +1,166 @@
 // src/hooks/useComments.js
 import { useState, useEffect } from 'react';
-
-const STORAGE_KEY = 'allComments';
+import { useAuth } from '../context/AuthContext';
 
 const useComments = () => {
-  const [comments, setComments] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
+    const [comments, setComments] = useState([]);
+    const { user } = useAuth(); // ✅ récupère l'utilisateur depuis le contexte Auth
 
-  // Persiste automatiquement à chaque changement
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(comments));
-  }, [comments]);
+    // Charger tous les commentaires au démarrage
+    useEffect(() => {
+        fetch('http://localhost:5000/api/commentaires')
+            .then(res => res.json())
+            .then(data => {
+                const normalized = data.map(normalizeComment);
+                setComments(normalized);
+            })
+            .catch((e) => console.log('Impossible de charger les commentaires', e));
+    }, []);
 
-  const getProductComments = (productId) =>
-    comments.filter((c) => c.id_produit === productId);
+    // Normalise un commentaire backend → format frontend
+    const normalizeComment = (c) => ({
+        id: c._id,
+        id_produit: c.produit?._id || c.produit,
+        id_utilisateur: String(c.utilisateur?._id || c.utilisateur || ''),
+        nom_utilisateur: c.utilisateur
+            ? `${c.utilisateur.prenom || ''} ${c.utilisateur.nom || ''}`.trim() || c.utilisateur.email
+            : 'Anonyme',
+        texte: c.contenu,
+        note: c.note || 5,
+        date: c.date
+    });
 
-  const getAverageRating = (productId) => {
-    const pc = getProductComments(productId);
-    if (pc.length === 0) return 0;
-    return (pc.reduce((acc, c) => acc + c.note, 0) / pc.length).toFixed(1);
-  };
-
-  const addComment = (productId, productName, user, text, rating) => {
-    if (!user) return alert('Veuillez vous connecter pour ajouter un commentaire.');
-    if (!text.trim()) return alert('Veuillez écrire un commentaire.');
-    const comment = {
-      id: Date.now().toString(),
-      id_produit: productId,
-      nom_produit: productName,
-      id_utilisateur: user.id,
-      nom_utilisateur: `${user.prenom} ${user.nom}`,
-      texte: text,
-      note: rating,
-      date: new Date().toISOString(),
-      dateModification: null,
+    // Obtenir les commentaires d'un produit
+    const getProductComments = (productId) => {
+        return comments.filter(c => String(c.id_produit) === String(productId));
     };
-    setComments((prev) => [...prev, comment]);
-  };
 
-  const editComment = (commentId, newText, userId) => {
-    const comment = comments.find((c) => c.id === commentId);
-    if (!comment || comment.id_utilisateur !== userId)
-      return alert('Vous ne pouvez modifier que vos propres commentaires.');
-    if (!newText.trim()) return alert('Le commentaire ne peut pas être vide.');
-    setComments((prev) =>
-      prev.map((c) =>
-        c.id === commentId
-          ? { ...c, texte: newText, dateModification: new Date().toISOString() }
-          : c
-      )
-    );
-  };
+    // Calculer la note moyenne d'un produit
+    const getAverageRating = (productId) => {
+        const productComments = getProductComments(productId);
+        if (productComments.length === 0) return 0;
+        const total = productComments.reduce((sum, c) => sum + (c.note || 0), 0);
+        return Math.round((total / productComments.length) * 10) / 10;
+    };
 
-  const deleteComment = (commentId, user) => {
-    const comment = comments.find((c) => c.id === commentId);
-    if (!comment) return;
-    if (comment.id_utilisateur !== user.id && user.role !== 'administrateur')
-      return alert('Vous ne pouvez supprimer que vos propres commentaires.');
-    if (window.confirm('Supprimer ce commentaire ?'))
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
-  };
+    // Ajouter un commentaire
+    const addComment = async (product, texte, note) => {
+        try {
+            const id_produit = product?.id_produit || product?.id || product?._id;
 
-  return { comments, getProductComments, getAverageRating, addComment, editComment, deleteComment };
+            if (!texte || !String(texte).trim()) {
+                console.error('Le texte du commentaire est vide');
+                return;
+            }
+
+            if (!user) {
+                console.error('Utilisateur non connecté');
+                return;
+            }
+
+            // ✅ Récupéré depuis useAuth(), pas depuis localStorage manuellement
+            const id_utilisateur = user.id || user._id;
+            const token = localStorage.getItem('token');
+
+            const response = await fetch('http://localhost:5000/api/commentaires', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    contenu: String(texte).trim(),
+                    note: note || 5,
+                    utilisateur: id_utilisateur,
+                    produit: id_produit
+                })
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                console.error('Erreur ajout commentaire:', err.message);
+                return;
+            }
+
+            const saved = await response.json();
+
+            // ✅ Enrichir avec le nom de l'utilisateur connecté directement
+            const newComment = {
+                ...normalizeComment(saved),
+                nom_utilisateur: `${user.prenom || ''} ${user.nom || ''}`.trim() || user.email,
+                id_utilisateur: String(id_utilisateur)
+            };
+
+            setComments(prev => [newComment, ...prev]);
+
+        } catch (error) {
+            console.error('Erreur réseau addComment:', error);
+        }
+    };
+
+    // Modifier un commentaire
+    const editComment = async (commentaire) => {
+        try {
+            if (!commentaire.texte || !String(commentaire.texte).trim()) return;
+
+            const token = localStorage.getItem('token');
+
+            const response = await fetch(`http://localhost:5000/api/commentaires/${commentaire.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    contenu: String(commentaire.texte).trim(),
+                    note: commentaire.note || 5
+                })
+            });
+
+            if (!response.ok) return;
+
+            const updated = await response.json();
+            setComments(prev =>
+                prev.map(c => c.id === commentaire.id ? normalizeComment(updated) : c)
+            );
+
+        } catch (error) {
+            console.error('Erreur réseau editComment:', error);
+        }
+    };
+
+    // Supprimer un commentaire
+    const deleteComment = async (id) => {
+        try {
+            const token = localStorage.getItem('token');
+
+            const response = await fetch(`http://localhost:5000/api/commentaires/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                credentials: 'include'
+            });
+
+            if (!response.ok) return;
+
+            setComments(prev => prev.filter(c => c.id !== id));
+
+        } catch (error) {
+            console.error('Erreur réseau deleteComment:', error);
+        }
+    };
+
+    return {
+        comments,
+        getProductComments,
+        getAverageRating,
+        addComment,
+        editComment,
+        deleteComment
+    };
 };
 
 export default useComments;
