@@ -4,9 +4,9 @@ const { getAllUsers, getUserById, updateUser, deleteUser, updatePassword } = req
 const protect = require('../middlewares/auth.middleware');
 const permit = require('../middlewares/role.middleware');
 
-// Admin only
-router.get('/', protect, permit('admin'), getAllUsers);
-router.delete('/:id', protect, permit('admin'), deleteUser);
+// ✅ CORRECTION : rôle 'administrateur' au lieu de 'admin'
+router.get('/', protect, permit('administrateur', 'admin'), getAllUsers);
+router.delete('/:id', protect, permit('administrateur', 'admin'), deleteUser);
 
 // Admin or owner (check inside controller)
 router.get('/:id', protect, getUserById);

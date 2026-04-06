@@ -8,7 +8,6 @@ const sendNotification = async ({ recipientId, message, productName, agentName }
     try {
         if (!recipientId) return;
 
-        // 1. Persister en MongoDB (déjà existant)
         const notif = await Notification.create({
             recipientId,
             message,
@@ -17,7 +16,6 @@ const sendNotification = async ({ recipientId, message, productName, agentName }
             read: false
         });
 
-        // 2. Émettre en temps réel via Socket.io (NOUVEAU)
         emitNotification(String(recipientId), {
             _id: notif._id,
             message,
@@ -32,7 +30,7 @@ const sendNotification = async ({ recipientId, message, productName, agentName }
     }
 };
 
-// ─── (Helpers inchangés) ──────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const normalizeCodeBarre = (payload) => {
     const code = String(payload?.code_barre || payload?.codeBarres || '').trim();
     return code;
@@ -85,7 +83,7 @@ exports.createProduit = async (req, res) => {
         const populated = await Produit.findById(savedProduit._id)
             .populate('ingredients')
             .populate('pointsDeVente')
-            .populate('createdBy');
+            .populate('createdBy', 'nom prenom email');
 
         res.status(201).json(populated);
     } catch (error) {
@@ -117,7 +115,7 @@ exports.createPendingProduit = async (req, res) => {
         const populated = await Produit.findById(savedProduit._id)
             .populate('ingredients')
             .populate('pointsDeVente')
-            .populate('createdBy');
+            .populate('createdBy', 'nom prenom email');
 
         res.status(201).json(populated);
     } catch (error) {
@@ -126,18 +124,19 @@ exports.createPendingProduit = async (req, res) => {
 };
 
 // ─── Récupérer tous les produits ─────────────────────────────────────────────
+// ✅ CORRECTION : ajout de populate('createdBy') et populate('validatedBy')
 exports.getAllProduits = async (req, res) => {
     try {
         const filter = {};
         if (req.query.status) filter.status = req.query.status;
         if (req.query.createdBy) filter.createdBy = req.query.createdBy;
 
-        // Ne pas charger `image` en liste : certains docs ont des base64 énormes (>200ko) et
-        // bloquent la réponse HTTP/curl pendant des dizaines de secondes via Atlas.
         const produits = await Produit.find(filter)
             .select('-image')
-            .populate({ path: 'ingredients', select: 'nom description estBio', options: { maxTimeMS: 8000 } })
-            .populate({ path: 'pointsDeVente', select: 'nom adresse', options: { maxTimeMS: 8000 } })
+            .populate({ path: 'ingredients',   select: 'nom description estBio', options: { maxTimeMS: 8000 } })
+            .populate({ path: 'pointsDeVente', select: 'nom adresse',            options: { maxTimeMS: 8000 } })
+            .populate({ path: 'createdBy',     select: 'nom prenom email',       options: { maxTimeMS: 8000 } }) // ✅ AJOUTÉ
+            .populate({ path: 'validatedBy',   select: 'nom prenom email',       options: { maxTimeMS: 8000 } }) // ✅ AJOUTÉ
             .lean()
             .maxTimeMS(8000);
 
@@ -148,12 +147,16 @@ exports.getAllProduits = async (req, res) => {
     }
 };
 
+// ─── Récupérer produits en attente ───────────────────────────────────────────
+// ✅ CORRECTION : ajout de populate('createdBy') et populate('validatedBy')
 exports.getPendingProduits = async (req, res) => {
     try {
         const produits = await Produit.find({ status: 'pending' })
             .select('-image')
-            .populate({ path: 'ingredients', select: 'nom description estBio', options: { maxTimeMS: 8000 } })
-            .populate({ path: 'pointsDeVente', select: 'nom adresse', options: { maxTimeMS: 8000 } })
+            .populate({ path: 'ingredients',   select: 'nom description estBio', options: { maxTimeMS: 8000 } })
+            .populate({ path: 'pointsDeVente', select: 'nom adresse',            options: { maxTimeMS: 8000 } })
+            .populate({ path: 'createdBy',     select: 'nom prenom email',       options: { maxTimeMS: 8000 } }) // ✅ AJOUTÉ
+            .populate({ path: 'validatedBy',   select: 'nom prenom email',       options: { maxTimeMS: 8000 } }) // ✅ AJOUTÉ
             .lean()
             .maxTimeMS(8000)
             .sort({ createdAt: -1 });
@@ -164,14 +167,15 @@ exports.getPendingProduits = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
 // ─── Récupérer produit par ID ─────────────────────────────────────────────────
 exports.getProduitById = async (req, res) => {
     try {
         const produit = await Produit.findById(req.params.id)
             .populate('ingredients', 'nom description estBio')
             .populate('pointsDeVente', 'nom adresse')
-            .populate('createdBy', 'nom email')
-            .populate('validatedBy', 'nom email');
+            .populate('createdBy', 'nom prenom email')
+            .populate('validatedBy', 'nom prenom email');
 
         if (!produit) return res.status(404).json({ message: 'Produit non trouvé' });
         res.status(200).json(produit);
@@ -199,8 +203,8 @@ exports.updateProduit = async (req, res) => {
         const populated = await Produit.findById(produit._id)
             .populate('ingredients', 'nom description estBio')
             .populate('pointsDeVente', 'nom adresse')
-            .populate('createdBy', 'nom email')
-            .populate('validatedBy', 'nom email');
+            .populate('createdBy', 'nom prenom email')
+            .populate('validatedBy', 'nom prenom email');
 
         const createdById = populated.createdBy?._id || populated.createdBy;
         const agentId = req.body.modifiedBy || req.body.validatedBy;
@@ -233,8 +237,8 @@ exports.approveProduit = async (req, res) => {
         const populated = await Produit.findById(produit._id)
             .populate('ingredients', 'nom description estBio')
             .populate('pointsDeVente', 'nom adresse')
-            .populate('createdBy', 'nom email')
-            .populate('validatedBy', 'nom email');
+            .populate('createdBy', 'nom prenom email')
+            .populate('validatedBy', 'nom prenom email');
 
         const createdById = populated.createdBy?._id || populated.createdBy;
         if (createdById) {

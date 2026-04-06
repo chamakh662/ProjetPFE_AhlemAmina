@@ -13,6 +13,19 @@ const getStatusLabel = (status) => ({
 }[status] || '⏳ En attente');
 
 /**
+ * Retourne le nom complet d'un utilisateur peuplé.
+ * Gère les cas : objet { nom, prenom }, { name }, { username }, string, null.
+ */
+const getUserLabel = (user) => {
+    if (!user) return null;
+    if (typeof user === 'string') return user; // id non peuplé
+    const prenom = user.prenom || user.firstName || '';
+    const nom    = user.nom   || user.lastName  || user.name || user.username || '';
+    const full   = `${prenom} ${nom}`.trim();
+    return full || user.email || user._id || '—';
+};
+
+/**
  * Onglet Produits — lecture seule pour l'admin
  * Affiche tous les produits avec fournisseur + agent validateur
  */
@@ -29,7 +42,17 @@ const ProductsTab = () => {
             const res = await fetch('/api/produits');
             const data = await res.json().catch(() => []);
             if (!res.ok) throw new Error(data.message || 'Erreur chargement');
-            setProducts(Array.isArray(data) ? data : []);
+            const list = Array.isArray(data) ? data : [];
+
+            // 🔍 Debug : affiche le premier produit dans la console
+            // pour vérifier les noms de champs renvoyés par l'API
+            if (list.length > 0) {
+                console.log('🔍 Structure produit (premier) :', list[0]);
+                console.log('🔍 createdBy :', list[0].createdBy);
+                console.log('🔍 validatedBy :', list[0].validatedBy);
+            }
+
+            setProducts(list);
         } catch (err) {
             setError(err.message || 'Erreur');
         } finally {
@@ -79,43 +102,54 @@ const ProductsTab = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filtered.map(p => (
-                                <tr key={p._id} style={S.tr}>
-                                    <td style={S.td}>
-                                        <div style={S.productCell}>
-                                            <div style={S.thumb}>
-                                                {p.image
-                                                    ? <img src={p.image} alt={p.nom} style={S.thumbImg} />
-                                                    : <span>📦</span>}
-                                            </div>
-                                            <div>
-                                                <div style={S.productName}>{p.nom}</div>
-                                                <div style={S.productMeta}>
-                                                    {p.code_barre || '—'} • {p.origine || '—'}
+                            {filtered.map(p => {
+                                const fournisseur = getUserLabel(p.createdBy);
+                                const agent       = getUserLabel(p.validatedBy);
+
+                                return (
+                                    <tr key={p._id} style={S.tr}>
+                                        <td style={S.td}>
+                                            <div style={S.productCell}>
+                                                <div style={S.thumb}>
+                                                    {p.image
+                                                        ? <img src={p.image} alt={p.nom} style={S.thumbImg} />
+                                                        : <span>📦</span>}
+                                                </div>
+                                                <div>
+                                                    <div style={S.productName}>{p.nom}</div>
+                                                    <div style={S.productMeta}>
+                                                        {p.code_barre || '—'} • {p.origine || '—'}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td style={S.td}>
-                                        <span style={{ ...S.statusBadge, ...getStatusStyle(p.status) }}>
-                                            {getStatusLabel(p.status)}
-                                        </span>
-                                    </td>
-                                    <td style={S.td}>
-                                        {p.createdBy
-                                            ? `${p.createdBy.prenom || ''} ${p.createdBy.nom || ''}`.trim() || '—'
-                                            : '—'}
-                                    </td>
-                                    <td style={S.td}>
-                                        {p.validatedBy
-                                            ? `${p.validatedBy.prenom || ''} ${p.validatedBy.nom || ''}`.trim() || '—'
-                                            : <span style={S.noAgent}>Non validé</span>}
-                                    </td>
-                                    <td style={S.td}>
-                                        {p.createdAt ? new Date(p.createdAt).toLocaleDateString('fr-FR') : '—'}
-                                    </td>
-                                </tr>
-                            ))}
+                                        </td>
+
+                                        <td style={S.td}>
+                                            <span style={{ ...S.statusBadge, ...getStatusStyle(p.status) }}>
+                                                {getStatusLabel(p.status)}
+                                            </span>
+                                        </td>
+
+                                        {/* Fournisseur */}
+                                        <td style={S.td}>
+                                            {fournisseur
+                                                ? <span style={S.userLabel}>{fournisseur}</span>
+                                                : <span style={S.noAgent}>Non renseigné</span>}
+                                        </td>
+
+                                        {/* Agent validateur */}
+                                        <td style={S.td}>
+                                            {agent
+                                                ? <span style={S.userLabel}>{agent}</span>
+                                                : <span style={S.noAgent}>Non validé</span>}
+                                        </td>
+
+                                        <td style={S.td}>
+                                            {p.createdAt ? new Date(p.createdAt).toLocaleDateString('fr-FR') : '—'}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
@@ -145,6 +179,7 @@ const S = {
     productName: { fontWeight: 700 },
     productMeta: { color: '#64748b', fontSize: '0.8rem' },
     statusBadge: { padding: '0.25rem 0.75rem', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap', display: 'inline-block' },
+    userLabel: { fontWeight: 500 },
     noAgent: { color: '#94a3b8', fontStyle: 'italic' },
 };
 

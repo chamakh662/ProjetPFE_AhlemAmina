@@ -1,8 +1,8 @@
 const User = require('../models/user.model');
 const bcrypt = require('bcryptjs');
 
-// Rôles admin acceptés (les deux valeurs possibles)
-const isAdmin = (role) => role === 'admin' || role === 'administrateur';
+// ✅ CORRECTION : accepte uniquement 'administrateur' (valeur réelle en base)
+const isAdmin = (role) => role === 'administrateur' || role === 'admin';
 
 // 🟢 Get all users (admin only)
 exports.getAllUsers = async (req, res) => {

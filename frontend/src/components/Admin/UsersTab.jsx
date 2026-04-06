@@ -4,27 +4,37 @@ const getRoleColor = (role) => ({
     consommateur: '#10b981',
     fournisseur: '#3b82f6',
     agent: '#8b5cf6',
+    agent_saisie: '#8b5cf6',
     administrateur: '#f59e0b',
+    admin: '#f59e0b',
 }[role] || '#6b7280');
 
 const getRoleLabel = (role) => ({
     consommateur: '🛒 Consommateur',
     fournisseur: '🏭 Fournisseur',
     agent: '👮 Agent',
+    agent_saisie: '👮 Agent',
     administrateur: '🛡️ Admin',
+    admin: '🛡️ Admin',
 }[role] || role);
+
+const API = 'http://localhost:5000/api';
+const getToken = () => localStorage.getItem('token');
 
 /**
  * Props :
  *  - allUsers        : tableau d'utilisateurs
  *  - setAllUsers     : setter
  *  - statsByRole     : { total, consommateur, fournisseur, agent, administrateur }
+ *  - loading         : boolean
  */
-const UsersTab = ({ allUsers = [], setAllUsers, statsByRole = {} }) => {
+const UsersTab = ({ allUsers = [], setAllUsers, statsByRole = {}, loading = false }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterRole, setFilterRole] = useState('all');
     const [selectedUser, setSelectedUser] = useState(null);
     const [showModal, setShowModal] = useState(false);
+    const [actionLoading, setActionLoading] = useState(false);
+    const [errorMsg, setErrorMsg] = useState('');
 
     // ── Filtres ───────────────────────────────────────────────────────────
     const filteredUsers = allUsers.filter(u => {
@@ -36,31 +46,84 @@ const UsersTab = ({ allUsers = [], setAllUsers, statsByRole = {} }) => {
         return matchSearch && matchRole;
     });
 
-    // ── Actions ───────────────────────────────────────────────────────────
-    const handleDelete = (userId) => {
+    // ── Supprimer via API ─────────────────────────────────────────────────
+    const handleDelete = async (userId) => {
         if (!window.confirm('Supprimer cet utilisateur ?')) return;
-        const updated = allUsers.filter(u => u.id !== userId);
-        setAllUsers(updated);
-        localStorage.setItem('registeredUsers', JSON.stringify(updated));
-        setShowModal(false);
-    };
-
-    const handleToggleBlock = (userId) => {
-        const updated = allUsers.map(u =>
-            u.id === userId ? { ...u, isBlocked: !u.isBlocked } : u
-        );
-        setAllUsers(updated);
-        localStorage.setItem('registeredUsers', JSON.stringify(updated));
-        // Met à jour la modal si ouverte
-        if (selectedUser?.id === userId) {
-            setSelectedUser(updated.find(u => u.id === userId));
+        setActionLoading(true);
+        setErrorMsg('');
+        try {
+            const res = await fetch(`${API}/users/${userId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${getToken()}` }
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.message || `Erreur ${res.status}`);
+            }
+            // ✅ Met à jour la liste locale après suppression réussie
+            setAllUsers(prev => prev.filter(u => (u._id || u.id) !== userId));
+            setShowModal(false);
+        } catch (err) {
+            setErrorMsg(`Erreur suppression : ${err.message}`);
+        } finally {
+            setActionLoading(false);
         }
     };
 
-    const handleView = (u) => { setSelectedUser(u); setShowModal(true); };
+    // ── Bloquer / Débloquer via API ───────────────────────────────────────
+    const handleToggleBlock = async (userId) => {
+        const target = allUsers.find(u => (u._id || u.id) === userId);
+        if (!target) return;
+
+        setActionLoading(true);
+        setErrorMsg('');
+        try {
+            const res = await fetch(`${API}/users/${userId}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${getToken()}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ isBlocked: !target.isBlocked })
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.message || `Erreur ${res.status}`);
+            }
+            const data = await res.json();
+            const updatedUser = data.user || { ...target, isBlocked: !target.isBlocked };
+
+            // ✅ Met à jour uniquement l'utilisateur concerné
+            setAllUsers(prev => prev.map(u =>
+                (u._id || u.id) === userId ? { ...u, isBlocked: updatedUser.isBlocked } : u
+            ));
+
+            // Met à jour la modal si ouverte
+            if (selectedUser && (selectedUser._id || selectedUser.id) === userId) {
+                setSelectedUser(prev => ({ ...prev, isBlocked: updatedUser.isBlocked }));
+            }
+        } catch (err) {
+            setErrorMsg(`Erreur blocage : ${err.message}`);
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleView = (u) => { setSelectedUser(u); setShowModal(true); setErrorMsg(''); };
+
+    // Identifiant universel (_id MongoDB ou id)
+    const uid = (u) => u._id || u.id;
 
     return (
         <div style={S.container}>
+            {/* ── Message d'erreur global ── */}
+            {errorMsg && (
+                <div style={S.errorBox}>
+                    ⚠️ {errorMsg}
+                    <button onClick={() => setErrorMsg('')} style={S.errorClose}>✕</button>
+                </div>
+            )}
+
             {/* ── Barre recherche + filtre ── */}
             <div style={S.toolbar}>
                 <div style={S.searchBox}>
@@ -86,9 +149,9 @@ const UsersTab = ({ allUsers = [], setAllUsers, statsByRole = {} }) => {
             <div style={S.quickStats}>
                 {[
                     { icon: '🛒', label: 'Consommateurs', value: statsByRole.consommateur || 0 },
-                    { icon: '🏭', label: 'Fournisseurs', value: statsByRole.fournisseur || 0 },
-                    { icon: '👮', label: 'Agents', value: statsByRole.agent || 0 },
-                    { icon: '🛡️', label: 'Admins', value: statsByRole.administrateur || 0 },
+                    { icon: '🏭', label: 'Fournisseurs',  value: statsByRole.fournisseur  || 0 },
+                    { icon: '👮', label: 'Agents',        value: statsByRole.agent        || 0 },
+                    { icon: '🛡️', label: 'Admins',        value: statsByRole.administrateur || 0 },
                 ].map((s, i) => (
                     <div key={i} style={S.quickCard}>
                         <span style={{ fontSize: 22 }}>{s.icon}</span>
@@ -102,59 +165,64 @@ const UsersTab = ({ allUsers = [], setAllUsers, statsByRole = {} }) => {
 
             {/* ── Table ── */}
             <div style={S.tableWrap}>
-                <table style={S.table}>
-                    <thead>
-                        <tr>
-                            {['Utilisateur', 'Email', 'Rôle', 'Date Inscription', 'Statut', 'Actions'].map(h => (
-                                <th key={h} style={S.th}>{h}</th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredUsers.length === 0 ? (
-                            <tr><td colSpan={6} style={S.noData}>Aucun utilisateur trouvé</td></tr>
-                        ) : filteredUsers.map(u => (
-                            <tr key={u.id} style={S.tr}>
-                                <td style={S.td}>
-                                    <div style={S.userCell}>
-                                        <div style={S.avatar}>
-                                            {u.prenom?.[0]?.toUpperCase()}{u.nom?.[0]?.toUpperCase()}
-                                        </div>
-                                        <span style={S.userName}>{u.prenom} {u.nom}</span>
-                                    </div>
-                                </td>
-                                <td style={S.td}>{u.email}</td>
-                                <td style={S.td}>
-                                    <span style={{ ...S.roleBadge, backgroundColor: getRoleColor(u.role) }}>
-                                        {getRoleLabel(u.role)}
-                                    </span>
-                                </td>
-                                <td style={S.td}>
-                                    {u.createdAt ? new Date(u.createdAt).toLocaleDateString('fr-FR') : 'N/A'}
-                                </td>
-                                <td style={S.td}>
-                                    <span style={{
-                                        ...S.statusBadge,
-                                        backgroundColor: u.isBlocked ? '#fecaca' : '#d1fae5',
-                                        color: u.isBlocked ? '#dc2626' : '#059669',
-                                    }}>
-                                        {u.isBlocked ? '🔒 Bloqué' : '✅ Actif'}
-                                    </span>
-                                </td>
-                                <td style={S.td}>
-                                    <div style={S.actions}>
-                                        <button onClick={() => handleView(u)} style={S.btnView}>👁️</button>
-                                        <button onClick={() => handleToggleBlock(u.id)}
-                                            style={u.isBlocked ? S.btnUnblock : S.btnBlock}>
-                                            {u.isBlocked ? '🔓' : '🔒'}
-                                        </button>
-                                        <button onClick={() => handleDelete(u.id)} style={S.btnDelete}>🗑️</button>
-                                    </div>
-                                </td>
+                {loading ? (
+                    <div style={S.infoBox}>⏳ Chargement des utilisateurs…</div>
+                ) : (
+                    <table style={S.table}>
+                        <thead>
+                            <tr>
+                                {['Utilisateur', 'Email', 'Rôle', 'Date Inscription', 'Statut', 'Actions'].map(h => (
+                                    <th key={h} style={S.th}>{h}</th>
+                                ))}
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {filteredUsers.length === 0 ? (
+                                <tr><td colSpan={6} style={S.noData}>Aucun utilisateur trouvé</td></tr>
+                            ) : filteredUsers.map(u => (
+                                <tr key={uid(u)} style={S.tr}>
+                                    <td style={S.td}>
+                                        <div style={S.userCell}>
+                                            <div style={S.avatar}>
+                                                {u.prenom?.[0]?.toUpperCase()}{u.nom?.[0]?.toUpperCase()}
+                                            </div>
+                                            <span style={S.userName}>{u.prenom} {u.nom}</span>
+                                        </div>
+                                    </td>
+                                    <td style={S.td}>{u.email}</td>
+                                    <td style={S.td}>
+                                        <span style={{ ...S.roleBadge, backgroundColor: getRoleColor(u.role) }}>
+                                            {getRoleLabel(u.role)}
+                                        </span>
+                                    </td>
+                                    <td style={S.td}>
+                                        {u.createdAt ? new Date(u.createdAt).toLocaleDateString('fr-FR') : 'N/A'}
+                                    </td>
+                                    <td style={S.td}>
+                                        <span style={{
+                                            ...S.statusBadge,
+                                            backgroundColor: u.isBlocked ? '#fecaca' : '#d1fae5',
+                                            color: u.isBlocked ? '#dc2626' : '#059669',
+                                        }}>
+                                            {u.isBlocked ? '🔒 Bloqué' : '✅ Actif'}
+                                        </span>
+                                    </td>
+                                    <td style={S.td}>
+                                        <div style={S.actions}>
+                                            <button onClick={() => handleView(u)} style={S.btnView} disabled={actionLoading}>👁️</button>
+                                            <button onClick={() => handleToggleBlock(uid(u))}
+                                                style={u.isBlocked ? S.btnUnblock : S.btnBlock}
+                                                disabled={actionLoading}>
+                                                {u.isBlocked ? '🔓' : '🔒'}
+                                            </button>
+                                            <button onClick={() => handleDelete(uid(u))} style={S.btnDelete} disabled={actionLoading}>🗑️</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
             </div>
 
             {/* ── Modal détails ── */}
@@ -180,12 +248,12 @@ const UsersTab = ({ allUsers = [], setAllUsers, statsByRole = {} }) => {
 
                         <div style={S.detailGrid}>
                             {[
-                                { label: 'Email', value: selectedUser.email },
-                                { label: 'Téléphone', value: selectedUser.telephone || 'N/A' },
-                                { label: 'Adresse', value: selectedUser.adresse || 'N/A' },
-                                { label: 'Date Inscription', value: selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString('fr-FR') : 'N/A' },
-                                { label: 'Statut', value: selectedUser.isBlocked ? '🔒 Bloqué' : '✅ Actif' },
-                                { label: 'ID', value: selectedUser.id },
+                                { label: 'Email',             value: selectedUser.email },
+                                { label: 'Téléphone',         value: selectedUser.telephone || 'N/A' },
+                                { label: 'Adresse',           value: selectedUser.adresse || 'N/A' },
+                                { label: 'Date Inscription',  value: selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString('fr-FR') : 'N/A' },
+                                { label: 'Statut',            value: selectedUser.isBlocked ? '🔒 Bloqué' : '✅ Actif' },
+                                { label: 'ID',                value: uid(selectedUser) },
                             ].map((d, i) => (
                                 <div key={i} style={S.detailItem}>
                                     <label style={S.detailLabel}>{d.label}</label>
@@ -195,12 +263,17 @@ const UsersTab = ({ allUsers = [], setAllUsers, statsByRole = {} }) => {
                         </div>
 
                         <div style={S.modalActions}>
-                            <button onClick={() => handleToggleBlock(selectedUser.id)}
-                                style={selectedUser.isBlocked ? S.btnModalUnblock : S.btnModalBlock}>
-                                {selectedUser.isBlocked ? '🔓 Débloquer' : '🔒 Bloquer'}
+                            <button
+                                onClick={() => handleToggleBlock(uid(selectedUser))}
+                                style={selectedUser.isBlocked ? S.btnModalUnblock : S.btnModalBlock}
+                                disabled={actionLoading}>
+                                {actionLoading ? '⏳' : selectedUser.isBlocked ? '🔓 Débloquer' : '🔒 Bloquer'}
                             </button>
-                            <button onClick={() => handleDelete(selectedUser.id)} style={S.btnModalDelete}>
-                                🗑️ Supprimer
+                            <button
+                                onClick={() => handleDelete(uid(selectedUser))}
+                                style={S.btnModalDelete}
+                                disabled={actionLoading}>
+                                {actionLoading ? '⏳' : '🗑️ Supprimer'}
                             </button>
                         </div>
                     </div>
@@ -212,6 +285,9 @@ const UsersTab = ({ allUsers = [], setAllUsers, statsByRole = {} }) => {
 
 const S = {
     container: { display: 'flex', flexDirection: 'column', gap: '1.5rem' },
+    errorBox: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', backgroundColor: '#fee2e2', border: '1px solid #fecaca', borderRadius: '0.5rem', color: '#991b1b', fontSize: '0.875rem' },
+    errorClose: { background: 'none', border: 'none', cursor: 'pointer', color: '#991b1b', fontWeight: 700 },
+    infoBox: { padding: '2rem', textAlign: 'center', color: '#64748b' },
     toolbar: { display: 'flex', gap: '1rem', flexWrap: 'wrap' },
     searchBox: { display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '0.5rem', padding: '0.5rem 1rem', flex: 1, minWidth: 200 },
     searchInput: { border: 'none', outline: 'none', fontSize: '0.875rem', width: '100%', backgroundColor: 'transparent', color: '#1e293b' },
@@ -232,11 +308,10 @@ const S = {
     roleBadge: { display: 'inline-block', padding: '0.2rem 0.7rem', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700, color: 'white' },
     statusBadge: { display: 'inline-block', padding: '0.2rem 0.7rem', borderRadius: 999, fontSize: '0.75rem', fontWeight: 600 },
     actions: { display: 'flex', gap: '0.4rem' },
-    btnView: { padding: '0.35rem 0.6rem', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.875rem' },
-    btnBlock: { padding: '0.35rem 0.6rem', backgroundColor: '#fef3c7', border: '1px solid #fde68a', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.875rem' },
+    btnView:    { padding: '0.35rem 0.6rem', backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.875rem' },
+    btnBlock:   { padding: '0.35rem 0.6rem', backgroundColor: '#fef3c7', border: '1px solid #fde68a', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.875rem' },
     btnUnblock: { padding: '0.35rem 0.6rem', backgroundColor: '#d1fae5', border: '1px solid #a7f3d0', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.875rem' },
-    btnDelete: { padding: '0.35rem 0.6rem', backgroundColor: '#fee2e2', border: '1px solid #fecaca', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.875rem' },
-    // Modal
+    btnDelete:  { padding: '0.35rem 0.6rem', backgroundColor: '#fee2e2', border: '1px solid #fecaca', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '0.875rem' },
     overlay: { position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
     modal: { backgroundColor: 'white', borderRadius: '1rem', padding: '2rem', width: '90%', maxWidth: 560, maxHeight: '85vh', overflowY: 'auto' },
     modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' },
@@ -249,9 +324,9 @@ const S = {
     detailLabel: { fontSize: '0.75rem', color: '#64748b', fontWeight: 500 },
     detailValue: { fontSize: '0.875rem', color: '#1e293b', margin: 0 },
     modalActions: { display: 'flex', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' },
-    btnModalBlock: { flex: 1, padding: '0.75rem', backgroundColor: '#f59e0b', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 },
+    btnModalBlock:   { flex: 1, padding: '0.75rem', backgroundColor: '#f59e0b', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 },
     btnModalUnblock: { flex: 1, padding: '0.75rem', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 },
-    btnModalDelete: { flex: 1, padding: '0.75rem', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 },
+    btnModalDelete:  { flex: 1, padding: '0.75rem', backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600 },
 };
 
 export default UsersTab;

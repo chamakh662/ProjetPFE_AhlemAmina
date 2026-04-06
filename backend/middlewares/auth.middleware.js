@@ -9,7 +9,7 @@ const protect = async (req, res, next) => {
             nom: 'dev',
             prenom: 'bypass',
             email: 'dev-bypass@example.com',
-            role: 'admin'
+            role: 'administrateur' // ✅ CORRECTION : 'administrateur' au lieu de 'admin'
         };
         console.warn('⚠️ Authentification désactivée (mode développement)');
         return next();
@@ -24,10 +24,7 @@ const protect = async (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-        // 🔹 Récupérer l’utilisateur et enlever mot_de_passe
-        req.user = await User.findById(decoded.id).select('-mot_de_passe');
-        console.log("user auth",req.user)
+        req.user = await User.findById(decoded.id).select('-password -mot_de_passe');
 
         if (!req.user) {
             return res.status(401).json({ message: 'Utilisateur non trouvé' });
@@ -35,6 +32,14 @@ const protect = async (req, res, next) => {
 
         next();
     } catch (err) {
+        // ✅ Log détaillé pour diagnostiquer
+        console.error('❌ JWT verify error:', err.name, '-', err.message);
+        if (err.name === 'TokenExpiredError') {
+            return res.status(401).json({ message: 'Token expiré, reconnectez-vous' });
+        }
+        if (err.name === 'JsonWebTokenError') {
+            return res.status(401).json({ message: 'Token invalide' });
+        }
         res.status(401).json({ message: 'Invalid token' });
     }
 };
