@@ -16,7 +16,6 @@ const OverviewTab = ({ statsByRole = {} }) => {
         { label: 'Consommateurs', value: statsByRole.consommateur || 0, color: '#10b981' },
         { label: 'Fournisseurs', value: statsByRole.fournisseur || 0, color: '#3b82f6' },
         { label: 'Agents', value: statsByRole.agent || 0, color: '#8b5cf6' },
-        { label: 'Administrateurs', value: statsByRole.administrateur || 0, color: '#f59e0b' },
     ];
 
     const total = statsByRole.total || 1; // évite division par zéro
