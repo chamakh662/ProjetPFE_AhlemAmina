@@ -4,14 +4,12 @@ import { useAuth } from '../context/AuthContext';
 
 const EyeIcon = ({ visible }) =>
   visible ? (
-    // Eye open
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
       fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
       <circle cx="12" cy="12" r="3"/>
     </svg>
   ) : (
-    // Eye closed (slash)
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
       fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
@@ -19,6 +17,18 @@ const EyeIcon = ({ visible }) =>
       <line x1="1" y1="1" x2="23" y2="23"/>
     </svg>
   );
+
+// ✅ Style global injecté une seule fois pour supprimer l'œil natif du navigateur
+const hideNativeEyeStyle = `
+  input[type="password"]::-ms-reveal,
+  input[type="password"]::-ms-clear {
+    display: none !important;
+  }
+  input[type="password"]::-webkit-credentials-auto-fill-button,
+  input[type="password"]::-webkit-strong-password-auto-fill-button {
+    display: none !important;
+  }
+`;
 
 const Login = () => {
   const { login } = useAuth();
@@ -101,6 +111,7 @@ const Login = () => {
           navigate('/dashboard/SupplierDashboard', { replace: true });
           break;
         case 'agent':
+        case 'agent_saisie':
           navigate('/dashboard/AgentDashboard', { replace: true });
           break;
         default:
@@ -116,6 +127,9 @@ const Login = () => {
   if (showResetForm) {
     return (
       <div style={styles.container}>
+        {/* ✅ Supprime l'œil natif du navigateur */}
+        <style>{hideNativeEyeStyle}</style>
+
         <div style={styles.card}>
           <h2 style={styles.title}>Mot de passe oublié</h2>
 
@@ -194,6 +208,9 @@ const Login = () => {
 
   return (
     <div style={styles.container}>
+      {/* ✅ Supprime l'œil natif du navigateur (Chrome, Edge, Safari) */}
+      <style>{hideNativeEyeStyle}</style>
+
       <div style={styles.card}>
         <h2 style={styles.title}>Connexion</h2>
 
@@ -218,9 +235,10 @@ const Login = () => {
 
           <div style={styles.formGroup}>
             <label style={styles.label}>Mot de passe</label>
-            {/* Wrapper relatif pour positionner l'icône */}
             <div style={styles.passwordWrapper}>
               <input
+                // ✅ Quand showPassword=true → type="text" (pas d'œil natif)
+                // Quand showPassword=false → type="password" + CSS masque l'œil natif
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => {
@@ -229,8 +247,10 @@ const Login = () => {
                 }}
                 style={styles.passwordInput}
                 placeholder="••••••••"
+                autoComplete="current-password"
                 required
               />
+              {/* ✅ Notre seul et unique bouton œil */}
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
@@ -324,7 +344,6 @@ const styles = {
     outline: 'none',
     transition: 'border-color 0.2s'
   },
-  /* Nouveau : wrapper pour le champ mot de passe */
   passwordWrapper: {
     position: 'relative',
     display: 'flex',
@@ -332,13 +351,15 @@ const styles = {
   },
   passwordInput: {
     width: '100%',
-    padding: '12px 44px 12px 12px',   // padding-right pour laisser la place à l'icône
+    padding: '12px 44px 12px 12px',
     border: '2px solid #e5e7eb',
     borderRadius: '8px',
     fontSize: '14px',
     boxSizing: 'border-box',
     outline: 'none',
-    transition: 'border-color 0.2s'
+    transition: 'border-color 0.2s',
+    // ✅ Désactive l'œil natif via propriété inline (Edge)
+    MsRevealPassword: 'none',
   },
   eyeButton: {
     position: 'absolute',
