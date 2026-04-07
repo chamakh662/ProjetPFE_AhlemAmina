@@ -1,17 +1,4 @@
 import React from 'react';
-
-/**
- * Composant Sidebar partagé
- *
- * Props :
- *  - role        : 'agent' | 'fournisseur' | 'admin'
- *  - activeTab   : string
- *  - setActiveTab: fonction
- *  - onLogout    : fonction
- *  - user        : objet utilisateur { nom, prenom, ... }
- *  - unreadCount : nombre de notifications non lues (fournisseur uniquement)
- *  - extraBadges : { [tabKey]: number } — badges dynamiques (ex: { users: 5 })
- */
 const Sidebar = ({
     role = 'agent',
     activeTab,
@@ -29,7 +16,7 @@ const Sidebar = ({
             menuItems: [
                 { key: 'overview', label: "Vue d'ensemble", icon: '📊' },
                 { key: 'products', label: 'Gérer Produits', icon: '📦' },
-                { key: 'notifications', label: 'Messagerie', icon: '📩' },
+                { key: 'messages', label: 'Messagerie', icon: '💬' },
                 { key: 'aiAnalysis', label: 'Analyse IA', icon: '🤖' },
                 { key: 'profile', label: 'Mon Profil', icon: '👤' },
             ],
@@ -43,16 +30,17 @@ const Sidebar = ({
                 { key: 'notifications', label: 'Notifications', icon: '🔔', badge: true },
             ],
         },
-        admin: {
+        administrateur: {
             title: 'AdminPanel',
             titleIcon: '🛡️',
             menuItems: [
                 { key: 'dashboard', label: "Vue d'ensemble", icon: '📊' },
                 { key: 'users', label: 'Utilisateurs', icon: '👥', dynamicBadge: 'users' },
                 { key: 'products', label: 'Produits', icon: '📦' },
+                { key: 'messages', label: 'Messages', icon: '💬' },
                 { key: 'reports', label: 'Rapports', icon: '📈' },
             ],
-        },
+        }
     };
 
     const cfg = config[role];

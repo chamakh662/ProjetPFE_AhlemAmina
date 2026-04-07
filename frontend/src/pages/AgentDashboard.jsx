@@ -22,7 +22,7 @@ const AgentDashboard = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'overview': return <OverviewTab />;
-      case 'notifications': return <Messagerie user={user} role="agent" />;
+      case 'messages': return <Messagerie user={user} role="agent" />;
       case 'products': return <ProductManagement />;
       case 'aiAnalysis': return <AiAnalysisTab />;
       case 'profile': return <ProfileTab user={user} updateUser={updateUser} />;
@@ -33,7 +33,7 @@ const AgentDashboard = () => {
   return (
     <div style={styles.container}>
       <Sidebar
-        role="agent"                     // ✅ ajouté
+        role="agent"
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onLogout={handleLogout}

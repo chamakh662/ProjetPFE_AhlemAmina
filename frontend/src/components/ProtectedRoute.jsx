@@ -3,17 +3,6 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-/**
- * Garde d'accès générique.
- * Usage dans App.jsx :
- *   <ProtectedRoute allowedRoles={['consommateur']}><Home /></ProtectedRoute>
- *   <ProtectedRoute allowedRoles={['administrateur']}><AdminDashboard /></ProtectedRoute>
- *
- * - Si l'auth est en cours de chargement → spinner
- * - Si pas connecté            → redirige vers /login
- * - Si rôle non autorisé       → redirige vers /login
- * - Sinon                      → affiche les children
- */
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     const { user, loading } = useAuth();
 

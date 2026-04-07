@@ -2,13 +2,6 @@ import React, { useState, useEffect } from 'react';
 
 const MESSAGES_STORAGE_KEY = 'platform_messages';
 
-/**
- * Composant Messagerie partagé
- *
- * Props:
- *  - user   : objet utilisateur connecté { id, prenom, nom, ... }
- *  - role   : 'agent' | 'fournisseur'
- */
 const Messagerie = ({ user, role }) => {
 
     // ─── Config selon le rôle ───────────────────────────────────────────────
@@ -20,7 +13,7 @@ const Messagerie = ({ user, role }) => {
                 { value: 'fournisseur', label: 'Fournisseur' },
                 { value: 'administrateur', label: 'Administrateur' },
             ],
-            accentColor: '#3b82f6',
+            accentColor: '#10b981',
             unreadColor: '#3b82f6',
             unreadBg: '#f0f7ff',
             replyBannerBg: '#eff6ff',
@@ -37,7 +30,7 @@ const Messagerie = ({ user, role }) => {
                 { value: 'administrateur', label: 'Administrateur' },
                 { value: 'agent', label: 'Agent' },
             ],
-            accentColor: '#3b82f6',
+            accentColor: '#10b981',
             unreadColor: '#3b82f6',
             unreadBg: '#f0f7ff',
             replyBannerBg: '#eff6ff',
@@ -51,6 +44,26 @@ const Messagerie = ({ user, role }) => {
             filterSent: (m, userId) =>
                 m.fromId === userId && m.fromRole === 'fournisseur',
         },
+        administrateur: {
+            fromRole: 'administrateur',
+            defaultToRole: 'agent',
+            destinataireOptions: [
+                { value: 'agent', label: 'Agent' },
+                { value: 'fournisseur', label: 'Fournisseur' },
+            ],
+            accentColor: '#10b981',
+            unreadColor: '#10b981',
+            unreadBg: '#ecfdf5',
+            replyBannerBg: '#d1fae5',
+            replyBannerBorder: '#34d399',
+            replyLabelColor: '#065f46',
+            pageTitle: '📨 Messagerie Admin',
+            filterReceived: (m, userId) =>
+                m.toRole === 'administrateur' &&
+                (m.fromRole === 'agent' || m.fromRole === 'fournisseur'),
+            filterSent: (m, userId) =>
+                m.fromId === userId && m.fromRole === 'administrateur',
+        }
     };
 
     const cfg = config[role];
