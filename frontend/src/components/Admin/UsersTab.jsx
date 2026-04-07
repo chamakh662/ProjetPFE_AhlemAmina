@@ -14,8 +14,6 @@ const getRoleLabel = (role) => ({
     fournisseur: '🏭 Fournisseur',
     agent: '👮 Agent',
     agent_saisie: '👮 Agent',
-    administrateur: '🛡️ Admin',
-    admin: '🛡️ Admin',
 }[role] || role);
 
 const API = 'http://localhost:5000/api';
@@ -140,8 +138,7 @@ const UsersTab = ({ allUsers = [], setAllUsers, statsByRole = {}, loading = fals
                     <option value="all">Tous les rôles</option>
                     <option value="consommateur">Consommateurs</option>
                     <option value="fournisseur">Fournisseurs</option>
-                    <option value="agent">Agents</option>
-                    <option value="administrateur">Administrateurs</option>
+                    <option value="agent_saisie">Agents</option>
                 </select>
             </div>
 
@@ -151,7 +148,6 @@ const UsersTab = ({ allUsers = [], setAllUsers, statsByRole = {}, loading = fals
                     { icon: '🛒', label: 'Consommateurs', value: statsByRole.consommateur || 0 },
                     { icon: '🏭', label: 'Fournisseurs',  value: statsByRole.fournisseur  || 0 },
                     { icon: '👮', label: 'Agents',        value: statsByRole.agent        || 0 },
-                    { icon: '🛡️', label: 'Admins',        value: statsByRole.administrateur || 0 },
                 ].map((s, i) => (
                     <div key={i} style={S.quickCard}>
                         <span style={{ fontSize: 22 }}>{s.icon}</span>
