@@ -164,11 +164,13 @@ const styles = {
     padding: '0.45rem 1.1rem', borderRadius: '0.5rem',
     border: 'none', backgroundColor: '#16a34a',
     color: 'white', cursor: 'pointer', fontWeight: '500',
+
   },
   btnProfile: {
     padding: '0.45rem 1.1rem', borderRadius: '0.5rem',
-    border: 'none', backgroundColor: '#3b82f6',
+    border: 'none', backgroundColor: '#16a34a',
     color: 'white', cursor: 'pointer', fontWeight: '500',
+
   },
   btnLogout: {
     padding: '0.45rem 1.1rem', borderRadius: '0.5rem',
@@ -178,6 +180,7 @@ const styles = {
   burgerBtn: {
     background: 'none', border: 'none', fontSize: '1.6rem',
     cursor: 'pointer', color: '#374151', lineHeight: 1,
+
   },
   mobileMenu: {
     display: 'flex', flexDirection: 'column',

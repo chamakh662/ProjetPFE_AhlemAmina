@@ -11,7 +11,6 @@ import { useAuth } from '../context/AuthContext';
 // Composants communs
 import Navbar from '../components/Home/Navbar';
 import HeroSection from '../components/Home/HeroSection';
-import SearchSection from '../components/Home/SearchSection';
 import ScannerSection from '../components/Home/ScannerSection';
 import ProductsSection from '../components/Home/ProductsSection';
 import Footer from '../components/Home/Footer';
@@ -190,14 +189,14 @@ const Home = () => {
       )}
 
       {/* ── Sections communes ──────────────────────────────────────────── */}
-      <HeroSection />
-
-      <SearchSection
+      <HeroSection
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         displayProducts={displayProducts}
         handleSearch={handleSearch}
       />
+
+
 
       <ScannerSection
         barcode={barcode}
