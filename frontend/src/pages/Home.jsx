@@ -45,6 +45,8 @@ const Home = () => {
   const [displayProducts, setDisplayProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [barcode, setBarcode] = useState('');
+  const [scannedProduct, setScannedProduct] = useState(null);
+  const [scanError, setScanError] = useState(false);
 
   // ── Hooks consommateur ─────────────────────────────────────────────────────
   // Les hooks sont toujours appelés (règle des hooks React),
@@ -113,6 +115,24 @@ const Home = () => {
     // Historique uniquement pour les consommateurs et si résultats trouvés
     if (isConsommateur && results.length > 0) {
       addToHistory(searchQuery.trim());
+    }
+  };
+
+  // ── Recherche par Scan ──────────────────────────────────────────────────────
+  const handleBarcodeScan = () => {
+    setScanError(false);
+    const query = barcode.trim();
+    if (!query) return;
+
+    const found = allProducts.find(
+      (p) => p.code_barre === query || p.codeBarres === query
+    );
+
+    if (found) {
+      setScannedProduct(found);
+    } else {
+      setScannedProduct(null);
+      setScanError(true);
     }
   };
 
@@ -200,10 +220,14 @@ const Home = () => {
 
       <ScannerSection
         barcode={barcode}
-        setBarcode={setBarcode}
-        handleBarcodeScan={() => {
-          /* TODO: implémenter le scan */
+        setBarcode={(val) => {
+          setBarcode(val);
+          setScanError(false);
+          if (val === '') setScannedProduct(null);
         }}
+        handleBarcodeScan={handleBarcodeScan}
+        scannedProduct={scannedProduct}
+        scanError={scanError}
       />
 
       <ProductsSection

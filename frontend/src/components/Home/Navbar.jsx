@@ -31,19 +31,19 @@ const Navbar = ({
       <div style={styles.container}>
 
         {/* Logo */}
-      <div style={styles.logo} onClick={() => navigate('/')}> 
-      <img 
-        src="/logo.png" 
-        alt="BioScan Logo" 
-        style={styles.logoImage}
-      />
+        <div style={styles.logo} onClick={() => navigate('/')}>
+          <img
+            src="/logo.png"
+            alt="BioScan Logo"
+            style={styles.logoImage}
+          />
 
-      <img 
-        src="/BioScan1.png"   // ton deuxième logo
-        alt="Second Logo" 
-       style={styles.logoImage}
-      />
-    </div>
+          <img
+            src="/BioScan1.png"   // ton deuxième logo
+            alt="Second Logo"
+            style={styles.logoImage}
+          />
+        </div>
 
         {/* Liens centraux — masqués sur mobile */}
         {!isMobile && (
@@ -149,25 +149,25 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-logo: {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '10px',
-  cursor: 'pointer'
-},
+  logo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    cursor: 'pointer'
+  },
 
-logoImage: {
-  height: '50px',      // taille claire et visible
-  width: 'auto',
-  objectFit: 'contain', // évite la déformation
-},
+  logoImage: {
+    height: '38px',      // taille claire et visible
+    width: 'auto',
+    objectFit: 'contain', // évite la déformation
+  },
 
-logoImageSmall: {
-  height: '45px',
-  width: 'auto',
-  objectFit: 'contain',
-  opacity: 0.9          // léger effet propre
-},
+  logoImageSmall: {
+    height: '45px',
+    width: 'auto',
+    objectFit: 'contain',
+    opacity: 0.9          // léger effet propre
+  },
 
   navLinks: { display: 'flex', gap: '1.25rem' },
   navLink: {

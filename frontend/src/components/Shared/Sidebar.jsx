@@ -34,11 +34,10 @@ const Sidebar = ({
             title: 'AdminPanel',
             titleIcon: '🛡️',
             menuItems: [
-                { key: 'dashboard', label: "Vue d'ensemble", icon: '📊' },
+                { key: 'dashboard', label: "Statistiques", icon: '📊' },
                 { key: 'users', label: 'Utilisateurs', icon: '👥', dynamicBadge: 'users' },
                 { key: 'products', label: 'Produits', icon: '📦' },
                 { key: 'messages', label: 'Messages', icon: '💬' },
-                { key: 'reports', label: 'Rapports', icon: '📈' },
             ],
         }
     };

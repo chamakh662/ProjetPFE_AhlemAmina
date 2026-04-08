@@ -48,7 +48,7 @@ const AdminDashboard = () => {
                     let role = u.role || 'inconnu';
                     if (role === 'agent_saisie') role = 'agent';
 
-                        acc[role] = (acc[role] || 0) + 1;
+                    acc[role] = (acc[role] || 0) + 1;
                     return acc;
                 }, {});
                 stats.total = users.length;
