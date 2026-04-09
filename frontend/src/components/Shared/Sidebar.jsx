@@ -1,4 +1,10 @@
 import React from 'react';
+import { 
+  FiPieChart, FiBox, FiMessageSquare, FiActivity, FiUser,
+  FiPlusSquare, FiBell, FiBarChart2, FiUsers, FiShield, FiLogOut, FiSun, FiMoon
+} from 'react-icons/fi';
+import { useTheme } from '../../context/ThemeContext';
+
 const Sidebar = ({
     role = 'agent',
     activeTab,
@@ -8,36 +14,37 @@ const Sidebar = ({
     unreadCount = 0,
     extraBadges = {},
 }) => {
+    const { theme, toggleTheme } = useTheme();
 
     // ─── Config selon le rôle ─────────────────────────────────────────────
     const config = {
         agent: {
             title: 'Espace Agent',
             menuItems: [
-                { key: 'overview', label: "Vue d'ensemble", icon: '📊' },
-                { key: 'products', label: 'Gérer Produits', icon: '📦' },
-                { key: 'messages', label: 'Messagerie', icon: '💬' },
-                { key: 'aiAnalysis', label: 'Analyse IA', icon: '🤖' },
-                { key: 'profile', label: 'Mon Profil', icon: '👤' },
+                { key: 'overview', label: "Vue d'ensemble", icon: <FiPieChart size={18} /> },
+                { key: 'products', label: 'Gérer Produits', icon: <FiBox size={18} /> },
+                { key: 'messages', label: 'Messagerie', icon: <FiMessageSquare size={18} /> },
+                { key: 'aiAnalysis', label: 'Analyse IA', icon: <FiActivity size={18} /> },
+                { key: 'profile', label: 'Mon Profil', icon: <FiUser size={18} /> },
             ],
         },
         fournisseur: {
             title: 'Espace Fournisseur',
             menuItems: [
-                { key: 'addProduct', label: 'Ajouter Produit', icon: '➕' },
-                { key: 'myProducts', label: 'Mes Produits', icon: '📦' },
-                { key: 'messages', label: 'Messages', icon: '💬' },
-                { key: 'notifications', label: 'Notifications', icon: '🔔', badge: true },
+                { key: 'addProduct', label: 'Ajouter Produit', icon: <FiPlusSquare size={18} /> },
+                { key: 'myProducts', label: 'Mes Produits', icon: <FiBox size={18} /> },
+                { key: 'messages', label: 'Messages', icon: <FiMessageSquare size={18} /> },
+                { key: 'notifications', label: 'Notifications', icon: <FiBell size={18} />, badge: true },
             ],
         },
         administrateur: {
             title: 'AdminPanel',
-            titleIcon: '🛡️',
+            titleIcon: <FiShield size={24} color="#3b82f6" />,
             menuItems: [
-                { key: 'dashboard', label: "Statistiques", icon: '📊' },
-                { key: 'users', label: 'Utilisateurs', icon: '👥', dynamicBadge: 'users' },
-                { key: 'products', label: 'Produits', icon: '📦' },
-                { key: 'messages', label: 'Messages', icon: '💬' },
+                { key: 'dashboard', label: "Statistiques", icon: <FiBarChart2 size={18} /> },
+                { key: 'users', label: 'Utilisateurs', icon: <FiUsers size={18} />, dynamicBadge: 'users' },
+                { key: 'products', label: 'Produits', icon: <FiBox size={18} /> },
+                { key: 'messages', label: 'Messages', icon: <FiMessageSquare size={18} /> },
             ],
         }
     };
@@ -108,8 +115,11 @@ const Sidebar = ({
                         <span style={styles.userRole}>{roleLabel}</span>
                     </div>
                 </div>
+                <button onClick={toggleTheme} style={styles.themeBtn} title="Changer le thème">
+                    {theme === 'dark' ? <FiSun size={18} /> : <FiMoon size={18} />}
+                </button>
                 <button onClick={onLogout} style={styles.logoutBtn} title="Déconnexion">
-                    🚪
+                    <FiLogOut size={18} />
                 </button>
             </div>
         </div>
@@ -121,13 +131,14 @@ const styles = {
     sidebar: {
         width: '230px',
         minHeight: '100vh',
-        backgroundColor: '#1e293b',
-        color: 'white',
+        backgroundColor: 'var(--bg-card)',
+        color: 'var(--text-primary)',
         padding: '1.5rem',
         display: 'flex',
         flexDirection: 'column',
         boxSizing: 'border-box',
         flexShrink: 0,
+        borderRight: '1px solid var(--border-color)',
     },
     logoContainer: {
         display: 'flex',
@@ -140,7 +151,7 @@ const styles = {
         margin: 0,
         fontSize: 18,
         fontWeight: 700,
-        color: '#fff',
+        color: 'var(--text-primary)',
     },
     nav: {
         display: 'flex',
@@ -154,7 +165,7 @@ const styles = {
         backgroundColor: 'transparent',
         border: 'none',
         borderLeft: '4px solid transparent',
-        color: '#94a3b8',
+        color: 'var(--text-secondary)',
         borderRadius: '6px',
         cursor: 'pointer',
         textAlign: 'left',
@@ -164,10 +175,10 @@ const styles = {
     activeButton: {
         width: '100%',
         padding: '10px 14px',
-        backgroundColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: 'var(--border-color)',
         border: 'none',
-        borderLeft: '4px solid #3b82f6',
-        color: 'white',
+        borderLeft: '4px solid var(--accent-color)',
+        color: 'var(--text-primary)',
         borderRadius: '6px',
         cursor: 'pointer',
         textAlign: 'left',
@@ -183,9 +194,12 @@ const styles = {
     btnLabel: {
         display: 'flex',
         alignItems: 'center',
-        gap: '0.6rem',
+        gap: '0.8rem',
     },
-    btnIcon: { fontSize: 16 },
+    btnIcon: { 
+        display: 'flex', 
+        alignItems: 'center'
+    },
     badge: {
         backgroundColor: '#ef4444',
         color: '#fff',
@@ -214,7 +228,7 @@ const styles = {
         justifyContent: 'space-between',
         gap: '8px',
         paddingTop: '1rem',
-        borderTop: '1px solid #334155',
+        borderTop: '1px solid var(--border-color)',
         marginTop: 'auto',
     },
     userInfo: {
@@ -227,7 +241,7 @@ const styles = {
     avatar: {
         width: 36,
         height: 36,
-        backgroundColor: '#3b82f6',
+        backgroundColor: 'var(--accent-color)',
         borderRadius: '50%',
         display: 'flex',
         alignItems: 'center',
@@ -245,24 +259,40 @@ const styles = {
     userName: {
         fontSize: 13,
         fontWeight: 600,
-        color: 'white',
+        color: 'var(--text-primary)',
         whiteSpace: 'nowrap',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
     },
     userRole: {
         fontSize: 11,
-        color: '#94a3b8',
+        color: 'var(--text-muted)',
+    },
+    themeBtn: {
+        background: 'transparent',
+        border: '1px solid var(--border-color)',
+        color: 'var(--text-secondary)',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '8px',
+        borderRadius: 6,
+        flexShrink: 0,
+        transition: 'all 0.2s',
     },
     logoutBtn: {
         background: 'transparent',
-        border: '1px solid #334155',
-        color: '#94a3b8',
+        border: '1px solid var(--border-color)',
+        color: '#ef4444',
         cursor: 'pointer',
-        fontSize: 15,
-        padding: '6px 10px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '8px',
         borderRadius: 6,
         flexShrink: 0,
+        transition: 'all 0.2s',
     },
 };
 

@@ -141,8 +141,10 @@ const styles = {
         position: 'relative',
         overflow: 'hidden',
         aspectRatio: '3 / 4',
-        backgroundColor: '#e8e4de',
+        backgroundColor: 'var(--bg-main)',
         cursor: 'pointer',
+        borderRadius: '12px',
+        boxShadow: 'var(--shadow-card)',
     },
     image: {
         width: '100%',
@@ -157,7 +159,7 @@ const styles = {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#e8e4de',
+        backgroundColor: 'var(--bg-main)',
     },
     actions: {
         position: 'absolute',
@@ -172,13 +174,15 @@ const styles = {
         width: '34px',
         height: '34px',
         borderRadius: '50%',
-        backgroundColor: 'rgba(255,255,255,0.92)',
-        border: 'none',
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255,255,255,0.4)',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         padding: 0,
+        color: '#ffffff'
     },
     overlay: {
         position: 'absolute',

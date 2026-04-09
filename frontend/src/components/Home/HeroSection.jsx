@@ -9,7 +9,18 @@ const HeroSection = ({ searchQuery, setSearchQuery, handleSearch, displayProduct
         <div style={styles.heroContent}>
             {/* ── Barre de recherche EN HAUT ── */}
             <div style={styles.searchWrapper}>
-                <form onSubmit={handleSearch} style={styles.searchBox}>
+                <form 
+                    onSubmit={(e) => {
+                        handleSearch(e);
+                        // On scroll directement vers la section des résultats
+                        if (searchQuery.trim()) {
+                            setTimeout(() => {
+                                document.getElementById('products-section')?.scrollIntoView({ behavior: 'smooth' });
+                            }, 100);
+                        }
+                    }} 
+                    style={styles.searchBox}
+                >
                     <span style={styles.searchIcon}>🔍</span>
                     <input
                         type="text"
@@ -31,17 +42,6 @@ const HeroSection = ({ searchQuery, setSearchQuery, handleSearch, displayProduct
                         Rechercher
                     </button>
                 </form>
-
-                {/* Feedback résultats */}
-                {searchQuery.trim() && (
-                    <div style={styles.searchMeta}>
-                        <span style={{ color: displayProducts.length ? '#86efac' : '#fca5a5', fontWeight: 600 }}>
-                            {displayProducts.length
-                                ? `✅ ${displayProducts.length} produit(s) trouvé(s)`
-                                : '❌ Aucun produit trouvé'}
-                        </span>
-                    </div>
-                )}
             </div>
 
             {/* ── Titre & sous-titre ── */}
@@ -71,7 +71,7 @@ const HeroSection = ({ searchQuery, setSearchQuery, handleSearch, displayProduct
 const styles = {
     hero: {
         position: 'relative',
-        height: '85vh',
+        height: '97vh',
         backgroundImage: "url('/back.jpg')",
         backgroundSize: 'cover',
         backgroundAttachment: 'fixed',

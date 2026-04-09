@@ -1,6 +1,8 @@
 // src/components/Navbar.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FiUser, FiHeart, FiClock, FiLogOut, FiSun, FiMoon } from 'react-icons/fi';
+import { useTheme } from '../../context/ThemeContext';
 
 const Navbar = ({
   user,
@@ -11,6 +13,7 @@ const Navbar = ({
   onLogout,
 }) => {
   const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
@@ -45,40 +48,38 @@ const Navbar = ({
           />
         </div>
 
-        {/* Liens centraux — masqués sur mobile */}
+        {/* Menu Desktop */}
         {!isMobile && (
-          <div style={styles.navLinks}>
-            {user?.role === 'consommateur' && (
-              <button style={styles.navLink} onClick={onFavoritesClick}>
-                ❤️ Favoris {favoritesCount > 0 && `(${favoritesCount})`}
-              </button>
-            )}
-            {user?.role === 'consommateur' && (
-              <button style={styles.navLink} onClick={onHistoryClick}>
-                📋 Historique
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Actions droite — masquées sur mobile */}
-        {!isMobile && (
-          <div style={styles.navActions}>
+          <div style={styles.desktopMenu}>
+            <button style={styles.iconButton} onClick={toggleTheme} title="Changer le thème">
+              {theme === 'dark' ? <FiSun size={20} /> : <FiMoon size={20} />}
+            </button>
             {user ? (
               <>
-                <button style={styles.btnProfile} onClick={onProfileClick}>
-                  👤 {user.prenom || 'Mon Profil'}
+                {user?.role === 'consommateur' && (
+                  <>
+                    <button style={styles.iconButton} onClick={onFavoritesClick} title="Favoris">
+                      <FiHeart size={22} style={favoritesCount > 0 ? { fill: '#ffffff' } : {}} />
+                      {favoritesCount > 0 && <span style={styles.badge}>{favoritesCount}</span>}
+                    </button>
+                    <button style={styles.iconButton} onClick={onHistoryClick} title="Historique">
+                      <FiClock size={22} />
+                    </button>
+                  </>
+                )}
+                <button style={styles.iconButton} onClick={onProfileClick} title="Mon profil">
+                  <FiUser size={22} />
                 </button>
-                <button style={styles.btnLogout} onClick={onLogout}>
-                  🚪 Déconnexion
+                <button style={styles.iconButton} onClick={onLogout} title="Déconnexion">
+                  <FiLogOut size={22} />
                 </button>
               </>
             ) : (
               <>
-                <button style={styles.btnLogin} onClick={() => navigate('/login')}>
+                <button style={styles.navLinkWhite} onClick={() => navigate('/login')}>
                   Connexion
                 </button>
-                <button style={styles.btnRegister} onClick={() => navigate('/register')}>
+                <button style={styles.navLinkWhite} onClick={() => navigate('/register')}>
                   Inscription
                 </button>
               </>
@@ -101,19 +102,26 @@ const Navbar = ({
       {/* Menu déroulant mobile */}
       {isMobile && isMobileMenuOpen && (
         <div style={styles.mobileMenu}>
-          <button style={styles.mobileLink} onClick={() => { onFavoritesClick(); setIsMobileMenuOpen(false); }}>
-            ❤️ Favoris {favoritesCount > 0 && `(${favoritesCount})`}
+          <button style={styles.mobileLink} onClick={() => { toggleTheme(); setIsMobileMenuOpen(false); }}>
+            {theme === 'dark' ? '☀️ Mode Clair' : '🌙 Mode Sombre'}
           </button>
-          <button style={styles.mobileLink} onClick={() => { onHistoryClick(); setIsMobileMenuOpen(false); }}>
-            📋 Historique
-          </button>
+          {user?.role === 'consommateur' && (
+            <>
+              <button style={styles.mobileLink} onClick={() => { onFavoritesClick(); setIsMobileMenuOpen(false); }}>
+                Favoris {favoritesCount > 0 && `(${favoritesCount})`}
+              </button>
+              <button style={styles.mobileLink} onClick={() => { onHistoryClick(); setIsMobileMenuOpen(false); }}>
+                Historique
+              </button>
+            </>
+          )}
           {user ? (
             <>
               <button style={styles.mobileLink} onClick={() => { onProfileClick(); setIsMobileMenuOpen(false); }}>
-                👤 Mon Profil
+                Mon profil
               </button>
               <button style={{ ...styles.mobileLink, color: '#ef4444' }} onClick={onLogout}>
-                🚪 Déconnexion
+                Déconnexion
               </button>
             </>
           ) : (
@@ -134,17 +142,16 @@ const Navbar = ({
 
 const styles = {
   navbar: {
-    backgroundColor: '#ffffff',
-    borderBottom: '1px solid #e5e7eb',
-    position: 'sticky',
+    backgroundColor: 'transparent',
+    position: 'absolute',
+    width: '100%',
     top: 0,
     zIndex: 100,
-    boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
   },
   container: {
     maxWidth: '1200px',
     margin: '0 auto',
-    padding: '0.85rem 1.5rem',
+    padding: '1.2rem 1.5rem',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -155,54 +162,62 @@ const styles = {
     gap: '10px',
     cursor: 'pointer'
   },
-
   logoImage: {
-    height: '38px',      // taille claire et visible
+    height: '38px',
     width: 'auto',
-    objectFit: 'contain', // évite la déformation
+    objectFit: 'contain',
   },
-
   logoImageSmall: {
     height: '45px',
     width: 'auto',
     objectFit: 'contain',
-    opacity: 0.9          // léger effet propre
+    opacity: 0.9
   },
-
-  navLinks: { display: 'flex', gap: '1.25rem' },
-  navLink: {
-    background: 'none', border: 'none', cursor: 'pointer',
-    fontSize: '0.95rem', color: '#4b5563', fontWeight: '500',
-    padding: '0.4rem 0.6rem', borderRadius: '0.4rem',
-    transition: 'background 0.15s',
+  desktopMenu: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '1.5rem' 
   },
-  navActions: { display: 'flex', gap: '0.6rem', alignItems: 'center' },
-  btnLogin: {
-    padding: '0.45rem 1.1rem', borderRadius: '0.5rem',
-    border: '1.5px solid #16a34a', backgroundColor: 'white',
-    color: '#16a34a', cursor: 'pointer', fontWeight: '500',
+  iconButton: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    color: '#ffffff',
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '0.2rem',
+    transition: 'opacity 0.2s',
   },
-  btnRegister: {
-    padding: '0.45rem 1.1rem', borderRadius: '0.5rem',
-    border: 'none', backgroundColor: '#16a34a',
-    color: 'white', cursor: 'pointer', fontWeight: '500',
-
+  badge: {
+    position: 'absolute',
+    top: '-6px',
+    right: '-8px',
+    backgroundColor: '#ef4444',
+    color: '#ffffff',
+    fontSize: '0.65rem',
+    fontWeight: 'bold',
+    borderRadius: '50%',
+    minWidth: '16px',
+    height: '16px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  btnProfile: {
-    padding: '0.45rem 1.1rem', borderRadius: '0.5rem',
-    border: 'none', backgroundColor: '#16a34a',
-    color: 'white', cursor: 'pointer', fontWeight: '500',
-
-  },
-  btnLogout: {
-    padding: '0.45rem 1.1rem', borderRadius: '0.5rem',
-    border: 'none', backgroundColor: '#ef4444',
-    color: 'white', cursor: 'pointer', fontWeight: '500',
+  navLinkWhite: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '0.95rem',
+    color: '#ffffff',
+    fontWeight: '500',
+    padding: '0.4rem 0.6rem',
+    transition: 'opacity 0.2s',
   },
   burgerBtn: {
     background: 'none', border: 'none', fontSize: '1.6rem',
-    cursor: 'pointer', color: '#374151', lineHeight: 1,
-
+    cursor: 'pointer', color: '#ffffff', lineHeight: 1,
   },
   mobileMenu: {
     display: 'flex', flexDirection: 'column',

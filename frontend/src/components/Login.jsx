@@ -302,47 +302,53 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: '1rem'
+    backgroundColor: 'var(--bg-main)',
+    padding: '1rem',
+    position: 'relative'
   },
   card: {
-    backgroundColor: 'white',
-    padding: '40px',
-    borderRadius: '12px',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+    backgroundColor: 'var(--bg-card)',
+    padding: '45px 40px',
+    borderRadius: '20px',
+    boxShadow: 'var(--shadow-light)',
     width: '100%',
-    maxWidth: '450px'
+    maxWidth: '420px',
+    border: '1px solid var(--border-color)',
+    zIndex: 1
   },
   title: {
     textAlign: 'center',
-    marginBottom: '30px',
-    color: '#1f2937',
-    fontSize: '2rem',
-    fontWeight: '700'
+    marginBottom: '35px',
+    color: 'var(--text-primary)',
+    fontSize: '2.2rem',
+    fontWeight: '800',
+    letterSpacing: '-0.5px'
   },
   form: {
     display: 'flex',
     flexDirection: 'column'
   },
   formGroup: {
-    marginBottom: '20px'
+    marginBottom: '24px'
   },
   label: {
     display: 'block',
     marginBottom: '8px',
     fontWeight: '600',
-    color: '#374151',
-    fontSize: '0.875rem'
+    color: 'var(--text-secondary)',
+    fontSize: '0.9rem'
   },
   input: {
     width: '100%',
-    padding: '12px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
-    fontSize: '14px',
+    padding: '14px 16px',
+    backgroundColor: 'var(--bg-input)',
+    border: '1.5px solid var(--border-input)',
+    borderRadius: '12px',
+    fontSize: '14.5px',
     boxSizing: 'border-box',
     outline: 'none',
-    transition: 'border-color 0.2s'
+    transition: 'all 0.2s ease',
+    color: 'var(--text-primary)'
   },
   passwordWrapper: {
     position: 'relative',
@@ -351,59 +357,61 @@ const styles = {
   },
   passwordInput: {
     width: '100%',
-    padding: '12px 44px 12px 12px',
-    border: '2px solid #e5e7eb',
-    borderRadius: '8px',
-    fontSize: '14px',
+    padding: '14px 44px 14px 16px',
+    backgroundColor: 'var(--bg-input)',
+    border: '1.5px solid var(--border-input)',
+    borderRadius: '12px',
+    fontSize: '14.5px',
     boxSizing: 'border-box',
     outline: 'none',
-    transition: 'border-color 0.2s',
-    // ✅ Désactive l'œil natif via propriété inline (Edge)
+    transition: 'all 0.2s ease',
+    color: 'var(--text-primary)',
     MsRevealPassword: 'none',
   },
   eyeButton: {
     position: 'absolute',
-    right: '12px',
+    right: '16px',
     background: 'none',
     border: 'none',
     cursor: 'pointer',
     padding: '0',
     display: 'flex',
     alignItems: 'center',
-    color: '#9ca3af',
+    color: 'var(--text-muted)',
     lineHeight: 1
   },
   button: {
     backgroundColor: '#16a34a',
     color: 'white',
-    padding: '14px',
+    padding: '16px',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '12px',
     cursor: 'pointer',
-    fontSize: '16px',
-    fontWeight: '600',
+    fontSize: '1.05rem',
+    fontWeight: '700',
     marginTop: '10px',
-    transition: 'background-color 0.2s'
+    transition: 'transform 0.1s, opacity 0.2s',
+    boxShadow: '0 4px 14px rgba(22, 163, 74, 0.2)'
   },
   error: {
-    backgroundColor: '#fef2f2',
-    color: '#dc2626',
+    backgroundColor: 'transparent',
+    color: '#ef4444',
     padding: '12px',
     borderRadius: '8px',
     marginBottom: '20px',
     textAlign: 'center',
-    border: '1px solid #fecaca',
+    border: '1px solid #ef4444',
     fontWeight: '500',
     fontSize: '0.875rem'
   },
   success: {
-    backgroundColor: '#f0fdf4',
-    color: '#15803d',
+    backgroundColor: 'transparent',
+    color: 'var(--accent-color)',
     padding: '16px',
     borderRadius: '8px',
     marginBottom: '20px',
     textAlign: 'center',
-    border: '1px solid #bbf7d0',
+    border: '1px solid var(--accent-color)',
     fontWeight: '500',
     fontSize: '0.875rem',
     lineHeight: '1.5'
@@ -411,23 +419,23 @@ const styles = {
   text: {
     textAlign: 'center',
     marginTop: '20px',
-    color: '#6b7280',
+    color: 'var(--text-muted)',
     fontSize: '0.875rem'
   },
   link: {
-    color: '#16a34a',
-    textDecoration: 'none',
-    fontWeight: '600'
+    color: 'var(--accent-color)',
+    textDecoration: 'underline',
+    fontWeight: '700'
   },
   backLink: {
     background: 'none',
     border: 'none',
-    color: '#16a34a',
+    color: 'var(--accent-color)',
     cursor: 'pointer',
-    fontSize: '0.875rem',
-    fontWeight: '600',
+    fontSize: '0.9rem',
+    fontWeight: '700',
     padding: 0,
-    textDecoration: 'none'
+    textDecoration: 'underline'
   },
   forgotPassword: {
     textAlign: 'right',
@@ -436,19 +444,19 @@ const styles = {
   forgotLink: {
     background: 'none',
     border: 'none',
-    color: '#6b7280',
+    color: 'var(--text-muted)',
     cursor: 'pointer',
     fontSize: '0.875rem',
     padding: 0,
     textDecoration: 'none'
   },
   resetLink: {
-    color: '#16a34a',
-    textDecoration: 'none',
+    color: 'var(--accent-color)',
+    textDecoration: 'underline',
     fontWeight: '700'
   },
   infoText: {
-    color: '#6b7280',
+    color: 'var(--text-muted)',
     fontSize: '0.875rem',
     marginBottom: '1.5rem',
     lineHeight: '1.5'
