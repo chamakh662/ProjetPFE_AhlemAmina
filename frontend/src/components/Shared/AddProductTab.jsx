@@ -69,7 +69,7 @@ const PaysAutocomplete = ({ value, onChange }) => {
                 type="text" placeholder="Origine (pays) *" value={query}
                 onChange={handleInput} onKeyDown={handleKeyDown}
                 onFocus={() => suggestions.length > 0 && setOpen(true)}
-                style={styles.input} autoComplete="off"
+                style={styles.input} className="add-product-input" autoComplete="off"
             />
             {open && (
                 <ul style={styles.dropdown}>
@@ -156,6 +156,7 @@ const AdresseAutocomplete = ({ value, onChange, onSelectCoords, placeholder }) =
                     onKeyDown={handleKeyDown}
                     onFocus={() => suggestions.length > 0 && setOpen(true)}
                     style={{ ...styles.input, paddingRight: '32px' }}
+                    className="add-product-input"
                     autoComplete="off"
                 />
                 {loadingAddr && (
@@ -188,23 +189,27 @@ const AdresseAutocomplete = ({ value, onChange, onSelectCoords, placeholder }) =
     );
 };
 
-const AddProductTab = ({ user, role = 'fournisseur', onSuccess }) => {
+const AddProductTab = ({ user, role = 'fournisseur', onSuccess, productToEdit = null, onCancelEdit }) => {
+
+    const isEditMode = !!productToEdit;
 
     // ─── Config selon le rôle ─────────────────────────────────────────────────
     const config = {
         agent: {
             directApprove: true,
-            submitLabel: '✅ Ajouter et publier',
-            url: '/api/produits',
-            status: 'approved',
-            successMsg: 'Produit ajouté et publié directement ✅',
+            submitLabel: isEditMode ? '✅ Enregistrer les modifications' : '✅ Ajouter et publier',
+            url: isEditMode ? `/api/produits/${productToEdit._id}` : '/api/produits',
+            method: isEditMode ? 'PUT' : 'POST',
+            status: isEditMode ? productToEdit.status : 'approved',
+            successMsg: isEditMode ? 'Produit modifié avec succès ✅' : 'Produit ajouté et publié directement ✅',
         },
         fournisseur: {
             directApprove: false,
-            submitLabel: '✅ Soumettre le produit',
-            url: '/api/produits/pending',
-            status: 'pending',
-            successMsg: 'Produit soumis et en attente de validation ✅',
+            submitLabel: isEditMode ? '✅ Soumettre les modifications' : '✅ Soumettre le produit',
+            url: isEditMode ? `/api/produits/${productToEdit._id}` : '/api/produits/pending',
+            method: isEditMode ? 'PUT' : 'POST',
+            status: 'pending', // Les modifications d'un fournisseur remettent le produit en attente
+            successMsg: isEditMode ? 'Produit modifié et renvoyé en validation ✅' : 'Produit soumis et en attente de validation ✅',
         },
     };
 
@@ -212,20 +217,29 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess }) => {
 
     // ─── State ────────────────────────────────────────────────────────────────
     const [productForm, setProductForm] = useState({
-        nom: '', marque: '', code_barre: '', origine: '',
-        ingredients: '', image: '', pointsDeVente: []
+        nom: productToEdit?.nom || '', 
+        marque: productToEdit?.marque || '', 
+        code_barre: productToEdit?.code_barre || '', 
+        origine: productToEdit?.origine || '',
+        ingredients: productToEdit?.ingredients ? productToEdit.ingredients.map(i => i.nom).join(', ') : '', 
+        image: productToEdit?.image || '', 
+        pointsDeVente: productToEdit?.pointsDeVente ? productToEdit.pointsDeVente.map(p => p._id) : []
     });
 
-    const [pointsDeVente, setPointsDeVente] = useState([]);
+    const [pointsDeVente, setPointsDeVente] = useState(productToEdit?.pointsDeVente || []);
     const [newPoint, setNewPoint] = useState({ nom: '', adresse: '', lat: null, lng: null });
     const [addingPoint, setAddingPoint] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [hasBarcode, setHasBarcode] = useState(!!productToEdit?.code_barre);
 
     const canSubmit =
         productForm.nom?.trim() &&
         productForm.marque?.trim() &&
-        productForm.code_barre?.trim() &&
-        productForm.origine?.trim();
+        productForm.origine?.trim() &&
+        productForm.ingredients?.trim() &&
+        productForm.image &&
+        (productForm.pointsDeVente && productForm.pointsDeVente.length > 0) &&
+        (!hasBarcode || productForm.code_barre?.trim());
 
     const isMongoObjectId = (v) => /^[a-fA-F0-9]{24}$/.test(String(v || '').trim());
 
@@ -299,9 +313,14 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess }) => {
                 createdBy: user.id,
                 status: cfg.status,
             };
+            
+            // Éviter l'erreur d'index "unique sparse" vide sur MongoDB
+            if (!hasBarcode || !payload.code_barre.trim()) {
+                delete payload.code_barre;
+            }
 
             const res = await fetch(cfg.url, {
-                method: 'POST',
+                method: cfg.method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
@@ -311,6 +330,7 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess }) => {
             // Reset formulaire
             setProductForm({ nom: '', marque: '', code_barre: '', origine: '', ingredients: '', image: '', pointsDeVente: [] });
             setPointsDeVente([]);
+            setHasBarcode(false);
 
             if (onSuccess) {
                 onSuccess();
@@ -327,7 +347,16 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess }) => {
     // ─── Render ───────────────────────────────────────────────────────────────
     return (
         <div>
-            <h2>Ajouter un Nouveau Produit</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h2 style={{ margin: 0, color: '#111827' }}>
+                    {isEditMode ? '✏️ Modifier le produit' : 'Ajouter un Nouveau Produit'}
+                </h2>
+                {isEditMode && onCancelEdit && (
+                    <button type="button" onClick={onCancelEdit} style={{ padding: '10px 18px', background: '#f8fafc', color: '#1e293b', border: '1.5px solid #cbd5e1', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>
+                        Annuler la modification
+                    </button>
+                )}
+            </div>
             <form onSubmit={handleSubmit} style={styles.form}>
 
                 {/* ── Infos produit ── */}
@@ -335,22 +364,40 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess }) => {
                     placeholder="Nom du produit *"
                     value={productForm.nom}
                     onChange={e => setProductForm({ ...productForm, nom: e.target.value })}
-                    style={styles.input}
+                    style={styles.input} className="add-product-input"
                 />
 
                 <textarea
                     placeholder="Marque *"
                     value={productForm.marque}
                     onChange={e => setProductForm({ ...productForm, marque: e.target.value })}
-                    style={styles.textarea}
+                    style={styles.textarea} className="add-product-input"
                 />
 
-                <input
-                    placeholder="Code-barre *"
-                    value={productForm.code_barre}
-                    onChange={e => setProductForm({ ...productForm, code_barre: e.target.value })}
-                    style={styles.input}
-                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 2px' }}>
+                    <input 
+                        type="checkbox" 
+                        id="hasBarcodeCheck"
+                        checked={hasBarcode} 
+                        onChange={(e) => {
+                            setHasBarcode(e.target.checked);
+                            if (!e.target.checked) setProductForm({ ...productForm, code_barre: '' }); 
+                        }} 
+                        style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#2563eb' }}
+                    />
+                    <label htmlFor="hasBarcodeCheck" style={{ fontSize: '15px', color: '#1e293b', cursor: 'pointer', fontWeight: '500', userSelect: 'none' }}>
+                        Ce produit possède un code-barre
+                    </label>
+                </div>
+
+                {hasBarcode && (
+                    <input
+                        placeholder="Code-barre *"
+                        value={productForm.code_barre}
+                        onChange={e => setProductForm({ ...productForm, code_barre: e.target.value })}
+                        style={styles.input} className="add-product-input"
+                    />
+                )}
 
                 <PaysAutocomplete
                     value={productForm.origine}
@@ -358,12 +405,13 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess }) => {
                 />
 
                 <textarea
-                    placeholder="Ingrédients"
+                    placeholder="Ingrédients *"
                     value={productForm.ingredients}
                     onChange={e => setProductForm({ ...productForm, ingredients: e.target.value })}
-                    style={styles.textarea}
+                    style={styles.textarea} className="add-product-input"
                 />
 
+                <label style={{ fontSize: '14px', color: '#1e293b', fontWeight: '600', marginLeft: '4px' }}>Image du produit *</label>
                 <input
                     type="file" accept="image/*"
                     onChange={async e => {
@@ -371,7 +419,8 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess }) => {
                         try { setProductForm({ ...productForm, image: await readFileAsDataUrl(file) }); }
                         catch { alert("Impossible de lire l'image"); }
                     }}
-                    style={styles.input}
+                    style={{...styles.input, backgroundColor: 'transparent', border: 'none', padding: '0'}} 
+                    className="add-product-input"
                 />
                 {productForm.image && (
                     <img src={productForm.image} alt="Preview" style={{ maxWidth: '220px', borderRadius: '8px', marginTop: '4px' }} />
@@ -379,7 +428,7 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess }) => {
 
                 {/* ── Section Points de vente ── */}
                 <div style={styles.sectionBox}>
-                    <p style={styles.sectionTitle}>🏪 Points de vente</p>
+                    <p style={styles.sectionTitle}>🏪 Points de vente *</p>
 
                     {pointsDeVente.length > 0 ? (
                         <div style={styles.pointsList}>
@@ -397,7 +446,7 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess }) => {
                                             </a>
                                         )}
                                     </div>
-                                    <button type="button" onClick={() => removePoint(p._id)} style={styles.removeBtn} title="Retirer">
+                                    <button type="button" onClick={() => removePoint(p._id)} style={styles.removeBtn} className="remove-point-btn" title="Retirer">
                                         ✕
                                     </button>
                                 </div>
@@ -416,6 +465,7 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess }) => {
                             value={newPoint.nom}
                             onChange={e => setNewPoint({ ...newPoint, nom: e.target.value })}
                             style={styles.input}
+                            className="add-product-input"
                         />
 
                         <AdresseAutocomplete
@@ -441,7 +491,7 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess }) => {
                             </p>
                         )}
 
-                        <button type="button" onClick={handleAddPoint} style={styles.addPointBtn} disabled={addingPoint}>
+                        <button type="button" onClick={handleAddPoint} style={styles.addPointBtn} className="add-product-btn" disabled={addingPoint}>
                             {addingPoint ? '⏳ Ajout en cours...' : '+ Ajouter ce point de vente'}
                         </button>
                     </div>
@@ -451,6 +501,7 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess }) => {
                 <button
                     type="submit"
                     style={{ ...styles.submitButton, opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+                    className="add-product-btn"
                     disabled={loading}
                 >
                     {loading ? 'Envoi en cours...' : cfg.submitLabel}
@@ -461,36 +512,72 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess }) => {
     );
 };
 
+// Injection d'un CSS global pour les petites animations et pseudo-classes
+const globalStyles = `
+    .add-product-input {
+        transition: all 0.3s ease;
+    }
+    .add-product-input:focus {
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15) !important;
+        background-color: #ffffff !important;
+        outline: none;
+    }
+    .add-product-btn {
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+    }
+    .add-product-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+    }
+    .add-product-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+    }
+    .remove-point-btn:hover {
+        background-color: rgba(239, 68, 68, 0.2) !important;
+        color: #b91c1c !important;
+    }
+`;
+
+if (typeof document !== 'undefined') {
+    if (!document.getElementById('add-product-styles')) {
+        const styleSheet = document.createElement("style");
+        styleSheet.id = 'add-product-styles';
+        styleSheet.innerText = globalStyles;
+        document.head.appendChild(styleSheet);
+    }
+}
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = {
-    form: { display: 'flex', flexDirection: 'column', gap: '15px', maxWidth: '620px', backgroundColor: '#fff', padding: '20px', borderRadius: '8px' },
-    input: { padding: '10px', border: '1px solid #ddd', borderRadius: '5px', width: '100%', boxSizing: 'border-box', fontSize: '14px' },
-    textarea: { padding: '10px', border: '1px solid #ddd', borderRadius: '5px', minHeight: '80px', fontSize: '14px', resize: 'vertical' },
+    form: { display: 'flex', flexDirection: 'column', gap: '22px', maxWidth: '650px', backgroundColor: '#ffffff', padding: '35px', borderRadius: '16px', boxShadow: '0 10px 30px rgba(0, 0, 0, 0.04)', border: '1px solid #f1f5f9' },
+    input: { padding: '14px 16px', border: '1.5px solid #e2e8f0', borderRadius: '10px', width: '100%', boxSizing: 'border-box', fontSize: '15px', backgroundColor: '#f8fafc', color: '#1e293b' },
+    textarea: { padding: '14px 16px', border: '1.5px solid #e2e8f0', borderRadius: '10px', minHeight: '100px', fontSize: '15px', resize: 'vertical', backgroundColor: '#f8fafc', color: '#1e293b', fontFamily: 'inherit' },
     autocompleteWrapper: { position: 'relative', width: '100%' },
-    dropdown: { position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff', border: '1px solid #1976D2', borderRadius: '5px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', zIndex: 1000, listStyle: 'none', margin: '4px 0 0 0', padding: '4px 0', maxHeight: '260px', overflowY: 'auto' },
-    dropdownItem: { padding: '10px 14px', cursor: 'pointer', fontSize: '14px', color: '#333' },
-    dropdownItemHighlighted: { backgroundColor: '#E3F2FD', color: '#1976D2' },
+    dropdown: { position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', zIndex: 1000, listStyle: 'none', margin: '6px 0 0 0', padding: '6px 0', maxHeight: '260px', overflowY: 'auto' },
+    dropdownItem: { padding: '12px 16px', cursor: 'pointer', fontSize: '14.5px', color: '#334155', transition: 'background-color 0.2s' },
+    dropdownItemHighlighted: { backgroundColor: '#f1f5f9', color: '#0f172a', fontWeight: '600' },
 
-    // Bouton submit — couleur unique bleue pour les deux rôles
-    submitButton: { backgroundColor: '#1976D2', color: '#fff', padding: '13px', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '15px' },
+    submitButton: { backgroundColor: '#2563eb', color: '#ffffff', padding: '16px', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '16px', marginTop: '10px' },
 
-    // Section points de vente
-    sectionBox: { border: '1px solid #c8e6c9', borderRadius: '8px', padding: '16px', backgroundColor: '#f9fffe', display: 'flex', flexDirection: 'column', gap: '12px' },
-    sectionTitle: { margin: 0, fontWeight: 700, fontSize: '15px', color: '#2e7d32' },
-    emptyPoints: { margin: 0, fontSize: '13px', color: '#999', fontStyle: 'italic' },
+    sectionBox: { border: '1px solid #e2e8f0', borderRadius: '12px', padding: '24px', backgroundColor: '#ffffff', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.015)' },
+    sectionTitle: { margin: '0 0 4px 0', fontWeight: '800', fontSize: '16.5px', color: '#0f172a' },
+    emptyPoints: { margin: 0, fontSize: '14px', color: '#64748b', fontStyle: 'italic' },
 
-    pointsList: { display: 'flex', flexDirection: 'column', gap: '8px' },
-    pointItem: { display: 'flex', alignItems: 'flex-start', gap: '10px', backgroundColor: '#fff', border: '1px solid #a5d6a7', borderRadius: '7px', padding: '10px 12px' },
-    pointNom: { display: 'block', fontWeight: 700, fontSize: '14px', color: '#1b5e20' },
-    pointAdresse: { display: 'block', fontSize: '12px', color: '#555', marginTop: '2px' },
-    mapsLink: { display: 'inline-block', marginTop: '4px', fontSize: '12px', fontWeight: 600, color: '#1976D2', textDecoration: 'none' },
-    removeBtn: { background: 'none', border: 'none', cursor: 'pointer', color: '#e53935', fontSize: '18px', padding: '0 4px', lineHeight: 1, flexShrink: 0 },
+    pointsList: { display: 'flex', flexDirection: 'column', gap: '12px' },
+    pointItem: { display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '16px' },
+    pointNom: { display: 'inline-block', fontWeight: '700', fontSize: '15.5px', color: '#0f172a', marginBottom: '4px' },
+    pointAdresse: { display: 'block', fontSize: '13.5px', color: '#475569' },
+    mapsLink: { display: 'inline-block', marginTop: '8px', fontSize: '13px', fontWeight: '600', color: '#3b82f6', textDecoration: 'none' },
+    removeBtn: { background: 'rgba(239, 68, 68, 0.1)', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '16px', padding: '8px 12px', borderRadius: '8px', fontWeight: 'bold', transition: 'all 0.2s' },
 
-    addPointBox: { backgroundColor: '#f0f7ff', border: '1px dashed #90caf9', borderRadius: '7px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' },
-    addPointTitle: { margin: 0, fontWeight: 600, fontSize: '13px', color: '#1565c0' },
-    coordsPreview: { display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: '5px', padding: '8px 12px', fontSize: '12px', color: '#2e7d32', flexWrap: 'wrap' },
-    coordsHint: { margin: 0, fontSize: '12px', color: '#888', fontStyle: 'italic' },
-    addPointBtn: { backgroundColor: '#1976D2', color: '#fff', padding: '10px', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' },
+    addPointBox: { backgroundColor: '#f0f9ff', border: '1.5px dashed #bae6fd', borderRadius: '10px', padding: '22px', display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '8px' },
+    addPointTitle: { margin: 0, fontWeight: '700', fontSize: '15px', color: '#0284c7' },
+    coordsPreview: { display: 'flex', alignItems: 'center', gap: '14px', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '8px', padding: '12px 14px', fontSize: '13.5px', color: '#065f46', flexWrap: 'wrap' },
+    coordsHint: { margin: 0, fontSize: '13px', color: '#64748b', fontStyle: 'italic' },
+    addPointBtn: { backgroundColor: '#0ea5e9', color: '#ffffff', padding: '12px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '14.5px' },
 };
 
 export default AddProductTab;
