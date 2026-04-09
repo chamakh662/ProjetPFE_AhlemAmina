@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext'; 
+import { useAuth } from '../context/AuthContext';
 
 const Register = () => {
-  const { register } = useAuth(); 
+  const { register } = useAuth();
   const navigate = useNavigate();
-  
+
   const [formData, setFormData] = useState({
     nom: '',
     prenom: '',
@@ -51,30 +51,27 @@ const Register = () => {
     try {
       // 🔴 UTILISER la fonction register du contexte
       const userData = await register(formData);
-      
+
       console.log('Inscription réussie:', userData);
       setSuccess('Inscription réussie ! Redirection...');
-      
+
       // 🔴 REDIRECTION SELON LE RÔLE
       setTimeout(() => {
-        switch(userData.role.toLowerCase()) {
+        switch (userData.role.toLowerCase()) {
           case 'administrateur':
             navigate('/dashboard/AdminDashboard', { replace: true });
             break;
           case 'consommateur':
-            navigate('/', { replace: true }); // 🔴 Vers Home
+            navigate('/', { replace: true });
             break;
           case 'fournisseur':
             navigate('/dashboard/SupplierDashboard', { replace: true });
-            break;
-          case 'agent':
-            navigate('/dashboard/AgentDashboard', { replace: true });
             break;
           default:
             navigate('/', { replace: true });
         }
       }, 1500);
-      
+
     } catch (error) {
       console.error('Erreur d\'inscription:', error);
       setError(error.message || 'Erreur lors de l\'inscription. Cet email existe peut-être déjà.');
@@ -85,10 +82,10 @@ const Register = () => {
     <div style={styles.container}>
       <div style={styles.card}>
         <h2 style={styles.title}>Inscription</h2>
-        
+
         {error && <div style={styles.error}>{error}</div>}
         {success && <div style={styles.success}>{success}</div>}
-        
+
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.formRow}>
             <div style={styles.formGroup}>
@@ -141,7 +138,6 @@ const Register = () => {
             >
               <option value="consommateur">Consommateur</option>
               <option value="fournisseur">Fournisseur</option>
-              <option value="agent">Agent</option>
               <option value="administrateur">Administrateur</option>
             </select>
           </div>

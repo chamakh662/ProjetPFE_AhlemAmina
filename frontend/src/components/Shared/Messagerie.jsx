@@ -8,11 +8,6 @@ const Messagerie = ({ user, role }) => {
     const config = {
         agent: {
             fromRole: 'agent',
-            defaultToRole: 'fournisseur',
-            destinataireOptions: [
-                { value: 'fournisseur', label: 'Fournisseur' },
-                { value: 'administrateur', label: 'Administrateur' },
-            ],
             accentColor: '#10b981',
             unreadColor: '#3b82f6',
             unreadBg: '#f0f7ff',
@@ -20,16 +15,11 @@ const Messagerie = ({ user, role }) => {
             replyBannerBorder: '#bfdbfe',
             replyLabelColor: '#2563eb',
             pageTitle: 'Messagerie Agent',
-            filterReceived: (m) => m.toRole === 'agent',
-            filterSent: (m) => m.fromRole === 'agent',
+            filterReceived: (m, userId, userEmail) => m.toId === userId || (userEmail && m.toEmail === userEmail),
+            filterSent: (m, userId) => m.fromId === userId,
         },
         fournisseur: {
             fromRole: 'fournisseur',
-            defaultToRole: 'administrateur',
-            destinataireOptions: [
-                { value: 'administrateur', label: 'Administrateur' },
-                { value: 'agent', label: 'Agent' },
-            ],
             accentColor: '#10b981',
             unreadColor: '#3b82f6',
             unreadBg: '#f0f7ff',
@@ -37,19 +27,11 @@ const Messagerie = ({ user, role }) => {
             replyBannerBorder: '#bfdbfe',
             replyLabelColor: '#2563eb',
             pageTitle: 'Messagerie',
-            filterReceived: (m, userId) =>
-                m.toRole === 'fournisseur' &&
-                (m.fromRole === 'administrateur' || m.fromRole === 'agent'),
-            filterSent: (m, userId) =>
-                m.fromId === userId && m.fromRole === 'fournisseur',
+            filterReceived: (m, userId, userEmail) => m.toId === userId || (userEmail && m.toEmail === userEmail),
+            filterSent: (m, userId) => m.fromId === userId,
         },
         administrateur: {
             fromRole: 'administrateur',
-            defaultToRole: 'agent',
-            destinataireOptions: [
-                { value: 'agent', label: 'Agent' },
-                { value: 'fournisseur', label: 'Fournisseur' },
-            ],
             accentColor: '#10b981',
             unreadColor: '#10b981',
             unreadBg: '#ecfdf5',
@@ -57,11 +39,8 @@ const Messagerie = ({ user, role }) => {
             replyBannerBorder: '#34d399',
             replyLabelColor: '#065f46',
             pageTitle: 'Messagerie Admin',
-            filterReceived: (m, userId) =>
-                m.toRole === 'administrateur' &&
-                (m.fromRole === 'agent' || m.fromRole === 'fournisseur'),
-            filterSent: (m, userId) =>
-                m.fromId === userId && m.fromRole === 'administrateur',
+            filterReceived: (m, userId, userEmail) => m.toId === userId || (userEmail && m.toEmail === userEmail),
+            filterSent: (m, userId) => m.fromId === userId,
         }
     };
 
@@ -73,7 +52,7 @@ const Messagerie = ({ user, role }) => {
     const [activeTab, setActiveTab] = useState('compose');
     const [replyingTo, setReplyingTo] = useState(null);
     const [messageForm, setMessageForm] = useState({
-        toRole: cfg.defaultToRole,
+        toEmail: '',
         subject: '',
         content: '',
     });
@@ -88,13 +67,16 @@ const Messagerie = ({ user, role }) => {
             if (!res.ok) throw new Error('Erreur de chargement');
             const allMessages = await res.json();
             
+            const userId = user?.id || user?._id;
+            const userEmail = user?.email;
+
             const sent = allMessages
-                .filter((m) => cfg.filterSent(m, user?.id || user?._id))
+                .filter((m) => cfg.filterSent(m, userId))
                 .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             setSentMessages(sent);
 
             const received = allMessages
-                .filter((m) => cfg.filterReceived(m, user?.id || user?._id))
+                .filter((m) => cfg.filterReceived(m, userId, userEmail))
                 .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             setReceivedMessages(received);
         } catch (err) {
@@ -104,13 +86,14 @@ const Messagerie = ({ user, role }) => {
 
     useEffect(() => {
         loadMessages();
-    }, [user?.id, user?._id]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.id, user?._id, user?.email]);
 
     // ─── Envoyer un nouveau message ──────────────────────────────────────────
     const handleSendMessage = async (e) => {
         e.preventDefault();
-        if (!messageForm.subject.trim() || !messageForm.content.trim()) {
-            alert('Veuillez remplir le sujet et le message.');
+        if (!messageForm.subject.trim() || !messageForm.content.trim() || !messageForm.toEmail.trim()) {
+            alert('Veuillez remplir tous les champs (Email, Sujet, Message).');
             return;
         }
 
@@ -125,7 +108,7 @@ const Messagerie = ({ user, role }) => {
                 body: JSON.stringify({
                     fromRole: cfg.fromRole,
                     fromName: user ? `${user.prenom || ''} ${user.nom || ''}`.trim() || cfg.fromRole : cfg.fromRole,
-                    toRole: messageForm.toRole,
+                    toEmail: messageForm.toEmail.trim(),
                     subject: messageForm.subject.trim(),
                     content: messageForm.content.trim(),
                 })
@@ -136,7 +119,7 @@ const Messagerie = ({ user, role }) => {
             }
             
             await loadMessages();
-            setMessageForm({ toRole: cfg.defaultToRole, subject: '', content: '' });
+            setMessageForm({ toEmail: '', subject: '', content: '' });
             alert('Message envoyé avec succès.');
             setActiveTab('sent');
         } catch (err) {
@@ -165,7 +148,6 @@ const Messagerie = ({ user, role }) => {
                     fromRole: cfg.fromRole,
                     fromName: user ? `${user.prenom || ''} ${user.nom || ''}`.trim() || cfg.fromRole : cfg.fromRole,
                     toId: replyingTo.fromId || null,
-                    toRole: replyingTo.fromRole,
                     subject: `Re: ${replyingTo.subject.replace(/^Re:\s*/, '')}`,
                     content: messageForm.content.trim(),
                     replyToId: replyingTo._id,
@@ -178,7 +160,7 @@ const Messagerie = ({ user, role }) => {
 
             await loadMessages();
             setReplyingTo(null);
-            setMessageForm({ toRole: cfg.defaultToRole, subject: '', content: '' });
+            setMessageForm({ toEmail: '', subject: '', content: '' });
             alert('Réponse envoyée avec succès.');
             setActiveTab('sent');
         } catch (err) {
@@ -190,7 +172,7 @@ const Messagerie = ({ user, role }) => {
     // ─── Démarrer une réponse ────────────────────────────────────────────────
     const startReply = async (message) => {
         setReplyingTo(message);
-        setMessageForm({ toRole: message.fromRole, subject: '', content: '' });
+        setMessageForm({ toEmail: message.fromEmail || '', subject: '', content: '' });
         setActiveTab('compose');
         window.scrollTo({ top: 0, behavior: 'smooth' });
         
@@ -211,7 +193,7 @@ const Messagerie = ({ user, role }) => {
 
     const cancelReply = () => {
         setReplyingTo(null);
-        setMessageForm({ toRole: cfg.defaultToRole, subject: '', content: '' });
+        setMessageForm({ toEmail: '', subject: '', content: '' });
     };
 
     const unreadCount = receivedMessages.filter((m) => !m.read).length;
@@ -249,7 +231,7 @@ const Messagerie = ({ user, role }) => {
                     className={`msg-tab-btn ${activeTab === 'sent' ? 'active' : ''}`}
                     onClick={() => {
                         setReplyingTo(null);
-                        setMessageForm({ toRole: cfg.defaultToRole, subject: '', content: '' });
+                        setMessageForm({ toEmail: '', subject: '', content: '' });
                         setActiveTab('sent');
                     }}
                 >
@@ -260,7 +242,7 @@ const Messagerie = ({ user, role }) => {
                     className={`msg-tab-btn ${activeTab === 'received' ? 'active' : ''}`}
                     onClick={() => {
                         setReplyingTo(null);
-                        setMessageForm({ toRole: cfg.defaultToRole, subject: '', content: '' });
+                        setMessageForm({ toEmail: '', subject: '', content: '' });
                         setActiveTab('received');
                     }}
                 >
@@ -281,7 +263,7 @@ const Messagerie = ({ user, role }) => {
                                     Réponse à : {replyingTo.subject}
                                 </span>
                                 <span className="msg-reply-meta">
-                                    De {replyingTo.fromName || replyingTo.fromRole} • {new Date(replyingTo.createdAt).toLocaleString('fr-FR', {day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute:'2-digit'}).replace(',', ' à')}
+                                    De {replyingTo.fromName || replyingTo.fromEmail || replyingTo.fromRole} • {new Date(replyingTo.createdAt).toLocaleString('fr-FR', {day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute:'2-digit'}).replace(',', ' à')}
                                 </span>
                             </div>
                             <button className="btn-cancel-msg" onClick={cancelReply}>✕ Annuler</button>
@@ -291,16 +273,15 @@ const Messagerie = ({ user, role }) => {
                     <form onSubmit={replyingTo ? handleReply : handleSendMessage}>
                         {!replyingTo && (
                             <div className="msg-form-group">
-                                <label className="msg-label">Destinataire <span style={{color: '#ef4444'}}>*</span></label>
-                                <select
-                                    value={messageForm.toRole}
-                                    onChange={(e) => setMessageForm({ ...messageForm, toRole: e.target.value })}
-                                    className="msg-select"
-                                >
-                                    {cfg.destinataireOptions.map((opt) => (
-                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                    ))}
-                                </select>
+                                <label className="msg-label">Email du destinataire <span style={{color: '#ef4444'}}>*</span></label>
+                                <input
+                                    type="email"
+                                    value={messageForm.toEmail}
+                                    onChange={(e) => setMessageForm({ ...messageForm, toEmail: e.target.value })}
+                                    className="msg-input"
+                                    placeholder="exemple@plateforme.com"
+                                    required
+                                />
                             </div>
                         )}
 
@@ -372,7 +353,7 @@ const Messagerie = ({ user, role }) => {
                                     <p className="msg-body">{m.content || '—'}</p>
                                     <div className="msg-footer">
                                         <span className="msg-sender">
-                                            À : <strong>{cfg.destinataireOptions.find(o => o.value === m.toRole)?.label || m.toRole}</strong>
+                                            À : <strong>{m.toEmail || m.toRole || 'Utilisateur inconnu'}</strong>
                                         </span>
                                     </div>
                                 </div>
@@ -409,7 +390,7 @@ const Messagerie = ({ user, role }) => {
                                     <p className="msg-body">{m.content || '—'}</p>
                                     <div className="msg-footer">
                                         <span className="msg-sender">
-                                            De : <strong>{m.fromName || m.fromRole}</strong>
+                                            De : <strong>{m.fromName || m.fromEmail || m.fromRole}</strong>
                                         </span>
                                         <button className="btn-reply-msg" onClick={() => startReply(m)}>
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg>

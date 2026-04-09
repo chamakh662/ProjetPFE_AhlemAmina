@@ -8,6 +8,7 @@ import UsersTab from '../components/Admin/UsersTab';
 import ProductsTab from '../components/Admin/ProductsTab';
 import ReportsTab from '../components/Admin/ReportsTab';
 import Messagerie from '../components/Shared/Messagerie';
+import CreateAgent from '../components/Admin/CreateAgent';
 
 const API = 'http://localhost:5000/api';
 
@@ -91,6 +92,8 @@ const AdminDashboard = () => {
                 return <ReportsTab />;
             case 'messages':
                 return <Messagerie user={user} role="administrateur" />;
+            case 'createAgent':
+                return <CreateAgent />;
             default:
                 return <OverviewTab statsByRole={statsByRole} loading={loadingUsers} />;
         }

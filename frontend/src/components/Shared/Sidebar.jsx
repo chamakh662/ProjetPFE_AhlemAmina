@@ -1,6 +1,6 @@
 import React from 'react';
 import { 
-  FiPieChart, FiBox, FiMessageSquare, FiActivity, FiUser,
+  FiPieChart, FiBox, FiMessageSquare, FiActivity, FiUser, FiUserPlus,
   FiPlusSquare, FiBell, FiBarChart2, FiUsers, FiShield, FiLogOut, FiSun, FiMoon
 } from 'react-icons/fi';
 import { useTheme } from '../../context/ThemeContext';
@@ -45,6 +45,7 @@ const Sidebar = ({
                 { key: 'users', label: 'Utilisateurs', icon: <FiUsers size={18} />, dynamicBadge: 'users' },
                 { key: 'products', label: 'Produits', icon: <FiBox size={18} /> },
                 { key: 'messages', label: 'Messages', icon: <FiMessageSquare size={18} /> },
+                { key: 'createAgent', label: 'Crée un agent', icon: <FiUserPlus size={18} /> },
             ],
         }
     };
