@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './Messagerie.css';
 
-const MESSAGES_STORAGE_KEY = 'platform_messages';
+const API_URL = 'http://localhost:5000/api/messages';
 
 const Messagerie = ({ user, role }) => {
     // ─── Config selon le rôle ───────────────────────────────────────────────
@@ -79,96 +79,116 @@ const Messagerie = ({ user, role }) => {
     });
 
     // ─── Load messages ───────────────────────────────────────────────────────
-    const loadMessages = () => {
-        const allMessages = JSON.parse(localStorage.getItem(MESSAGES_STORAGE_KEY) || '[]');
-        const sent = allMessages
-            .filter((m) => cfg.filterSent(m, user?.id))
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        setSentMessages(sent);
+    const loadMessages = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(API_URL, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error('Erreur de chargement');
+            const allMessages = await res.json();
+            
+            const sent = allMessages
+                .filter((m) => cfg.filterSent(m, user?.id || user?._id))
+                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            setSentMessages(sent);
 
-        const received = allMessages
-            .filter((m) => cfg.filterReceived(m, user?.id))
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        setReceivedMessages(received);
+            const received = allMessages
+                .filter((m) => cfg.filterReceived(m, user?.id || user?._id))
+                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            setReceivedMessages(received);
+        } catch (err) {
+            console.error('Erreur :', err);
+        }
     };
 
     useEffect(() => {
         loadMessages();
-    }, [user?.id]);
+    }, [user?.id, user?._id]);
 
     // ─── Envoyer un nouveau message ──────────────────────────────────────────
-    const handleSendMessage = (e) => {
+    const handleSendMessage = async (e) => {
         e.preventDefault();
         if (!messageForm.subject.trim() || !messageForm.content.trim()) {
             alert('Veuillez remplir le sujet et le message.');
             return;
         }
 
-        const allMessages = JSON.parse(localStorage.getItem(MESSAGES_STORAGE_KEY) || '[]');
-        const newMessage = {
-            id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-            fromId: user?.id || role,
-            fromRole: cfg.fromRole,
-            fromName: user
-                ? `${user.prenom || ''} ${user.nom || ''}`.trim() || cfg.fromRole
-                : cfg.fromRole,
-            toRole: messageForm.toRole,
-            toId: null,
-            subject: messageForm.subject.trim(),
-            content: messageForm.content.trim(),
-            createdAt: new Date().toISOString(),
-            read: false,
-            replyToId: null,
-        };
-
-        localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify([newMessage, ...allMessages]));
-        loadMessages();
-        setMessageForm({ toRole: cfg.defaultToRole, subject: '', content: '' });
-        alert('Message envoyé avec succès.');
-        setActiveTab('sent');
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json' 
+                },
+                body: JSON.stringify({
+                    fromRole: cfg.fromRole,
+                    fromName: user ? `${user.prenom || ''} ${user.nom || ''}`.trim() || cfg.fromRole : cfg.fromRole,
+                    toRole: messageForm.toRole,
+                    subject: messageForm.subject.trim(),
+                    content: messageForm.content.trim(),
+                })
+            });
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.message || errData.error || 'Erreur réseau/serveur');
+            }
+            
+            await loadMessages();
+            setMessageForm({ toRole: cfg.defaultToRole, subject: '', content: '' });
+            alert('Message envoyé avec succès.');
+            setActiveTab('sent');
+        } catch (err) {
+            console.error(err);
+            alert('Erreur lors de l\'envoi du message : ' + err.message);
+        }
     };
 
     // ─── Répondre à un message ───────────────────────────────────────────────
-    const handleReply = (e) => {
+    const handleReply = async (e) => {
         e.preventDefault();
         if (!replyingTo || !messageForm.content.trim()) {
             alert('Veuillez écrire un message.');
             return;
         }
 
-        const allMessages = JSON.parse(localStorage.getItem(MESSAGES_STORAGE_KEY) || '[]');
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json' 
+                },
+                body: JSON.stringify({
+                    fromRole: cfg.fromRole,
+                    fromName: user ? `${user.prenom || ''} ${user.nom || ''}`.trim() || cfg.fromRole : cfg.fromRole,
+                    toId: replyingTo.fromId || null,
+                    toRole: replyingTo.fromRole,
+                    subject: `Re: ${replyingTo.subject.replace(/^Re:\s*/, '')}`,
+                    content: messageForm.content.trim(),
+                    replyToId: replyingTo._id,
+                })
+            });
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.message || errData.error || 'Erreur réseau/serveur');
+            }
 
-        // Marquer l'original comme lu
-        const updated = allMessages.map((m) =>
-            m.id === replyingTo.id ? { ...m, read: true } : m
-        );
-
-        const replyMessage = {
-            id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-            fromId: user?.id || role,
-            fromRole: cfg.fromRole,
-            fromName: user
-                ? `${user.prenom || ''} ${user.nom || ''}`.trim() || cfg.fromRole
-                : cfg.fromRole,
-            toId: replyingTo.fromId || null,
-            toRole: replyingTo.fromRole,
-            subject: `Re: ${replyingTo.subject.replace(/^Re:\s*/, '')}`,
-            content: messageForm.content.trim(),
-            createdAt: new Date().toISOString(),
-            read: false,
-            replyToId: replyingTo.id,
-        };
-
-        localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify([replyMessage, ...updated]));
-        loadMessages();
-        setReplyingTo(null);
-        setMessageForm({ toRole: cfg.defaultToRole, subject: '', content: '' });
-        alert('Réponse envoyée avec succès.');
-        setActiveTab('sent');
+            await loadMessages();
+            setReplyingTo(null);
+            setMessageForm({ toRole: cfg.defaultToRole, subject: '', content: '' });
+            alert('Réponse envoyée avec succès.');
+            setActiveTab('sent');
+        } catch (err) {
+            console.error(err);
+            alert('Erreur lors de l\'envoi de la réponse : ' + err.message);
+        }
     };
 
     // ─── Démarrer une réponse ────────────────────────────────────────────────
-    const startReply = (message) => {
+    const startReply = async (message) => {
         setReplyingTo(message);
         setMessageForm({ toRole: message.fromRole, subject: '', content: '' });
         setActiveTab('compose');
@@ -176,10 +196,16 @@ const Messagerie = ({ user, role }) => {
         
         // Marquer comme lu immédiatement si cliqué sur répondre
         if (!message.read) {
-            const allMessages = JSON.parse(localStorage.getItem(MESSAGES_STORAGE_KEY) || '[]');
-            const updated = allMessages.map((m) => m.id === message.id ? { ...m, read: true } : m);
-            localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(updated));
-            loadMessages();
+            try {
+                const token = localStorage.getItem('token');
+                await fetch(`${API_URL}/${message._id}/read`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                await loadMessages();
+            } catch (err) {
+                console.error('Erreur markRead', err);
+            }
         }
     };
 
@@ -328,7 +354,7 @@ const Messagerie = ({ user, role }) => {
                     ) : (
                         <div className="msg-list">
                             {sentMessages.map((m) => (
-                                <div key={m.id} className="msg-item">
+                                <div key={m._id} className="msg-item">
                                     <div className="msg-item-header">
                                         <div className="msg-subject-wrap">
                                             <span className="msg-subject">{m.subject || '—'}</span>
@@ -368,7 +394,7 @@ const Messagerie = ({ user, role }) => {
                         <div className="msg-list">
                             {receivedMessages.map((m) => (
                                 <div
-                                    key={m.id}
+                                    key={m._id}
                                     className={`msg-item ${!m.read ? 'unread' : ''}`}
                                 >
                                     <div className="msg-item-header">
