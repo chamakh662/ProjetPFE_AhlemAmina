@@ -16,6 +16,26 @@ const getRoleLabel = (role) => ({
     agent_saisie: '👮 Agent',
 }[role] || role);
 
+const formatDate = (dateStr, id) => {
+    let d;
+    if (dateStr) {
+        d = new Date(dateStr);
+    } else if (id && typeof id === 'string' && id.length === 24) {
+        // Fallback: extraire la date depuis l'ObjectId MongoDB
+        d = new Date(parseInt(id.substring(0, 8), 16) * 1000);
+    }
+
+    if (!d || isNaN(d.getTime())) return 'N/A';
+
+    return d.toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    }).replace(' à', '').replace(/,?\s+/, ' à ');
+};
+
 const API = 'http://localhost:5000/api';
 const getToken = () => localStorage.getItem('token');
 
@@ -192,7 +212,7 @@ const UsersTab = ({ allUsers = [], setAllUsers, statsByRole = {}, loading = fals
                                         </span>
                                     </td>
                                     <td style={S.td}>
-                                        {u.createdAt ? new Date(u.createdAt).toLocaleDateString('fr-FR') : 'N/A'}
+                                        {formatDate(u.createdAt, u._id || u.id)}
                                     </td>
                                     <td style={S.td}>
                                         <span style={{
@@ -247,7 +267,7 @@ const UsersTab = ({ allUsers = [], setAllUsers, statsByRole = {}, loading = fals
                                 { label: 'Email',             value: selectedUser.email },
                                 { label: 'Téléphone',         value: selectedUser.telephone || 'N/A' },
                                 { label: 'Adresse',           value: selectedUser.adresse || 'N/A' },
-                                { label: 'Date Inscription',  value: selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString('fr-FR') : 'N/A' },
+                                { label: 'Date Inscription',  value: formatDate(selectedUser.createdAt, selectedUser._id || selectedUser.id) },
                                 { label: 'Statut',            value: selectedUser.isBlocked ? '🔒 Bloqué' : '✅ Actif' },
                                 { label: 'ID',                value: uid(selectedUser) },
                             ].map((d, i) => (

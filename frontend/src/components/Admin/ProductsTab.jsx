@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from 'react';
-
-const getStatusStyle = (status) => ({
-    approved: { backgroundColor: '#d1fae5', color: '#059669' },
-    rejected: { backgroundColor: '#fee2e2', color: '#dc2626' },
-    pending: { backgroundColor: '#fef3c7', color: '#92400e' },
-}[status] || { backgroundColor: '#fef3c7', color: '#92400e' });
+import './ProductsTab.css';
 
 const getStatusLabel = (status) => ({
     approved: '✅ Accepté',
@@ -14,7 +9,6 @@ const getStatusLabel = (status) => ({
 
 /**
  * Retourne le nom complet d'un utilisateur peuplé.
- * Gère les cas : objet { nom, prenom }, { name }, { username }, string, null.
  */
 const getUserLabel = (user) => {
     if (!user) return null;
@@ -25,15 +19,19 @@ const getUserLabel = (user) => {
     return full || user.email || user._id || '—';
 };
 
-/**
- * Onglet Produits — lecture seule pour l'admin
- * Affiche tous les produits avec fournisseur + agent validateur
- */
 const ProductsTab = () => {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [filterStatus, setFilterStatus] = useState('all');
+
+    // Nouveaux états pour le formulaire
+    const [showForm, setShowForm] = useState(false);
+    const [editingProduct, setEditingProduct] = useState(null);
+    const [formData, setFormData] = useState({
+        nom: '', marque: '', code_barre: '', origine: '', risque: '', scoreBio: 0, image: '', status: 'approved'
+    });
+    const [formLoading, setFormLoading] = useState(false);
 
     const fetchProducts = async () => {
         setLoading(true);
@@ -43,15 +41,6 @@ const ProductsTab = () => {
             const data = await res.json().catch(() => []);
             if (!res.ok) throw new Error(data.message || 'Erreur chargement');
             const list = Array.isArray(data) ? data : [];
-
-            // 🔍 Debug : affiche le premier produit dans la console
-            // pour vérifier les noms de champs renvoyés par l'API
-            if (list.length > 0) {
-                console.log('🔍 Structure produit (premier) :', list[0]);
-                console.log('🔍 createdBy :', list[0].createdBy);
-                console.log('🔍 validatedBy :', list[0].validatedBy);
-            }
-
             setProducts(list);
         } catch (err) {
             setError(err.message || 'Erreur');
@@ -62,42 +51,112 @@ const ProductsTab = () => {
 
     useEffect(() => { fetchProducts(); }, []);
 
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setFormData(prev => ({ ...prev, image: reader.result }));
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleEdit = (p) => {
+        setEditingProduct(p);
+        setFormData({
+            nom: p.nom || '',
+            marque: p.marque || '',
+            code_barre: p.code_barre || p.codeBarres || '',
+            origine: p.origine || '',
+            risque: p.risque || '',
+            scoreBio: p.scoreBio || 0,
+            image: p.image || '',
+            status: p.status || 'approved'
+        });
+        setShowForm(true);
+    };
+
+    const handleDelete = async (id) => {
+        if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce produit ?")) return;
+        try {
+            const res = await fetch(`/api/produits/${id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error('Erreur lors de la suppression');
+            fetchProducts();
+        } catch (err) {
+            alert(err.message);
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setFormLoading(true);
+        try {
+            const url = editingProduct ? `/api/produits/${editingProduct._id}` : '/api/produits';
+            const method = editingProduct ? 'PUT' : 'POST';
+            
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+            
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || 'Erreur lors de la sauvegarde');
+            
+            setShowForm(false);
+            setEditingProduct(null);
+            fetchProducts();
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            setFormLoading(false);
+        }
+    };
+
     const filtered = filterStatus === 'all'
         ? products
         : products.filter(p => p.status === filterStatus);
 
     return (
-        <div style={S.wrapper}>
-            <div style={S.header}>
-                <div>
-                    <h2 style={S.title}>📦 Tous les produits</h2>
-                    <p style={S.subtitle}>Vue d'ensemble : fournisseur ajouteur et agent validateur.</p>
+        <div className="products-tab-wrapper">
+            <div className="products-header">
+                <div className="products-title-area">
+                    <h2>
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                        Gestion des produits
+                    </h2>
+                    <p>Découvrez, modifiez ou supprimez des produits en toute simplicité.</p>
                 </div>
-                <div style={S.headerActions}>
-                    <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={S.select}>
+                <div className="products-actions">
+                    <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="select-filter">
                         <option value="all">Tous les statuts</option>
                         <option value="approved">Acceptés</option>
                         <option value="pending">En attente</option>
                         <option value="rejected">Rejetés</option>
                     </select>
-                    <button onClick={fetchProducts} style={S.refreshBtn}>↻ Actualiser</button>
                 </div>
             </div>
 
-            {error && <div style={S.errorBox}>{error}</div>}
-            {loading && <div style={S.infoBox}>⏳ Chargement…</div>}
+            {error && <div className="products-error-box"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>{error}</div>}
+            {loading && <div className="products-info-box">⏳ Chargement des données...</div>}
 
             {!loading && filtered.length === 0 && (
-                <div style={S.infoBox}>Aucun produit trouvé.</div>
+                <div className="products-info-box">Aucun produit trouvé pour les critères sélectionnés.</div>
             )}
 
             {!loading && filtered.length > 0 && (
-                <div style={S.tableWrap}>
-                    <table style={S.table}>
+                <div className="table-container">
+                    <table className="modern-table">
                         <thead>
                             <tr>
-                                {['Produit', 'Statut', 'Fournisseur', 'Agent validateur', 'Date ajout'].map(h => (
-                                    <th key={h} style={S.th}>{h}</th>
+                                {['Produit', 'Statut', 'Fournisseur', 'Agent validateur', 'Date ajout', 'Actions'].map(h => (
+                                    <th key={h}>{h}</th>
                                 ))}
                             </tr>
                         </thead>
@@ -107,45 +166,46 @@ const ProductsTab = () => {
                                 const agent       = getUserLabel(p.validatedBy);
 
                                 return (
-                                    <tr key={p._id} style={S.tr}>
-                                        <td style={S.td}>
-                                            <div style={S.productCell}>
-                                                <div style={S.thumb}>
+                                    <tr key={p._id}>
+                                        <td>
+                                            <div className="product-cell">
+                                                <div className="product-thumb">
                                                     {p.image
-                                                        ? <img src={p.image} alt={p.nom} style={S.thumbImg} />
+                                                        ? <img src={p.image} alt={p.nom} />
                                                         : <span>📦</span>}
                                                 </div>
                                                 <div>
-                                                    <div style={S.productName}>{p.nom}</div>
-                                                    <div style={S.productMeta}>
-                                                        {p.code_barre || '—'} • {p.origine || '—'}
+                                                    <div className="product-name">{p.nom}</div>
+                                                    <div className="product-meta">
+                                                        {p.code_barre || p.codeBarres || '—'} • {p.origine || '—'}
                                                     </div>
                                                 </div>
                                             </div>
                                         </td>
-
-                                        <td style={S.td}>
-                                            <span style={{ ...S.statusBadge, ...getStatusStyle(p.status) }}>
+                                        <td>
+                                            <span className={`status-badge status-${p.status || 'pending'}`}>
+                                                <span className="status-dot"></span>
                                                 {getStatusLabel(p.status)}
                                             </span>
                                         </td>
-
-                                        {/* Fournisseur */}
-                                        <td style={S.td}>
-                                            {fournisseur
-                                                ? <span style={S.userLabel}>{fournisseur}</span>
-                                                : <span style={S.noAgent}>Non renseigné</span>}
+                                        <td>
+                                            {fournisseur ? <span className="user-label">{fournisseur}</span> : <span className="no-agent">Non renseigné</span>}
                                         </td>
-
-                                        {/* Agent validateur */}
-                                        <td style={S.td}>
-                                            {agent
-                                                ? <span style={S.userLabel}>{agent}</span>
-                                                : <span style={S.noAgent}>Non validé</span>}
+                                        <td>
+                                            {agent ? <span className="user-label">{agent}</span> : <span className="no-agent">En attente</span>}
                                         </td>
-
-                                        <td style={S.td}>
+                                        <td>
                                             {p.createdAt ? new Date(p.createdAt).toLocaleDateString('fr-FR') : '—'}
+                                        </td>
+                                        <td>
+                                            <div className="action-btns">
+                                                <button onClick={() => handleEdit(p)} className="btn-icon btn-icon-edit" title="Modifier">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                                                </button>
+                                                <button onClick={() => handleDelete(p._id)} className="btn-icon btn-icon-delete" title="Supprimer">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 );
@@ -154,33 +214,76 @@ const ProductsTab = () => {
                     </table>
                 </div>
             )}
+
+            {showForm && (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <h3 className="modal-title">✏️ Modifier le produit</h3>
+                            <button type="button" onClick={() => setShowForm(false)} className="modal-close-btn" title="Fermer">✕</button>
+                        </div>
+                        <form onSubmit={handleSubmit} className="modern-form">
+                            <div className="form-group">
+                                <label className="form-label">Nom du produit <span className="required-mark">*</span></label>
+                                <input type="text" name="nom" required value={formData.nom} onChange={handleInputChange} className="form-input" placeholder="Ex: Céréales Miel..." />
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Marque</label>
+                                    <input type="text" name="marque" value={formData.marque} onChange={handleInputChange} className="form-input" placeholder="Ex: Nestlé" />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Code barre</label>
+                                    <input type="text" name="code_barre" value={formData.code_barre} onChange={handleInputChange} className="form-input" placeholder="Ex: 8000000000" />
+                                </div>
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Origine</label>
+                                    <input type="text" name="origine" value={formData.origine} onChange={handleInputChange} className="form-input" placeholder="Pays ou région" />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Risque / Nutri-Score</label>
+                                    <input type="text" name="risque" value={formData.risque} onChange={handleInputChange} className="form-input" placeholder="Ex: Bon, A, Faible..." />
+                                </div>
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Score Bio (0-100)</label>
+                                    <input type="number" name="scoreBio" value={formData.scoreBio} onChange={handleInputChange} className="form-input" min="0" max="100" />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Statut</label>
+                                    <select name="status" value={formData.status} onChange={handleInputChange} className="form-input">
+                                        <option value="approved">✅ Accepté</option>
+                                        <option value="pending">⏳ En attente</option>
+                                        <option value="rejected">❌ Rejeté</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Image (Optionnel)</label>
+                                <div className="file-input-wrapper">
+                                    <div>🖼️ Glissez ou cliquez pour uploader une image</div>
+                                    <input type="file" accept="image/*" onChange={handleImageChange} className="form-input-file" />
+                                </div>
+                                {formData.image && typeof formData.image === 'string' && (
+                                    <img src={formData.image} alt="Preview" className="img-preview" />
+                                )}
+                            </div>
+
+                            <div className="modal-footer">
+                                <button type="button" onClick={() => setShowForm(false)} className="btn-secondary" disabled={formLoading}>Annuler</button>
+                                <button type="submit" className="btn-primary" disabled={formLoading}>
+                                    {formLoading ? '⏳ Enregistrement...' : '💾 Enregistrer'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
-};
-
-const S = {
-    wrapper: {},
-    header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' },
-    title: { margin: '0 0 4px', fontSize: '1.25rem', fontWeight: 700, color: '#1e293b' },
-    subtitle: { margin: 0, color: '#64748b', fontSize: '0.875rem' },
-    headerActions: { display: 'flex', gap: '0.75rem', alignItems: 'center' },
-    select: { padding: '0.5rem 1rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem', backgroundColor: 'white', color: '#475569', fontSize: '0.875rem', cursor: 'pointer' },
-    refreshBtn: { padding: '0.5rem 1.2rem', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.5rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.875rem' },
-    infoBox: { padding: '1.25rem', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.75rem', color: '#64748b' },
-    errorBox: { padding: '1rem 1.25rem', backgroundColor: '#fee2e2', border: '1px solid #fecaca', borderRadius: '0.75rem', color: '#991b1b', marginBottom: '1rem' },
-    tableWrap: { backgroundColor: 'white', borderRadius: '1rem', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflowX: 'auto' },
-    table: { width: '100%', borderCollapse: 'collapse' },
-    th: { padding: '1rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' },
-    tr: { borderBottom: '1px solid #f1f5f9' },
-    td: { padding: '1rem', fontSize: '0.875rem', color: '#1e293b', verticalAlign: 'middle' },
-    productCell: { display: 'flex', alignItems: 'center', gap: '0.75rem' },
-    thumb: { width: 36, height: 36, borderRadius: '0.5rem', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 },
-    thumbImg: { width: '100%', height: '100%', objectFit: 'cover' },
-    productName: { fontWeight: 700 },
-    productMeta: { color: '#64748b', fontSize: '0.8rem' },
-    statusBadge: { padding: '0.25rem 0.75rem', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap', display: 'inline-block' },
-    userLabel: { fontWeight: 500 },
-    noAgent: { color: '#94a3b8', fontStyle: 'italic' },
 };
 
 export default ProductsTab;

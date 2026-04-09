@@ -42,7 +42,7 @@ const Navbar = ({
           />
 
           <img
-            src="/BioScan1.png"   // ton deuxième logo
+            src="/BioScan2.png"   // ton deuxième logo
             alt="Second Logo"
             style={styles.logoImage}
           />
@@ -173,10 +173,10 @@ const styles = {
     objectFit: 'contain',
     opacity: 0.9
   },
-  desktopMenu: { 
-    display: 'flex', 
-    alignItems: 'center', 
-    gap: '1.5rem' 
+  desktopMenu: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1.5rem'
   },
   iconButton: {
     background: 'none',

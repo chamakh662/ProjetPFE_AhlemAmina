@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import './Messagerie.css';
 
 const MESSAGES_STORAGE_KEY = 'platform_messages';
 
 const Messagerie = ({ user, role }) => {
-
     // ─── Config selon le rôle ───────────────────────────────────────────────
     const config = {
         agent: {
@@ -19,7 +19,7 @@ const Messagerie = ({ user, role }) => {
             replyBannerBg: '#eff6ff',
             replyBannerBorder: '#bfdbfe',
             replyLabelColor: '#2563eb',
-            pageTitle: '📨 Messagerie Agent',
+            pageTitle: 'Messagerie Agent',
             filterReceived: (m) => m.toRole === 'agent',
             filterSent: (m) => m.fromRole === 'agent',
         },
@@ -36,11 +36,10 @@ const Messagerie = ({ user, role }) => {
             replyBannerBg: '#eff6ff',
             replyBannerBorder: '#bfdbfe',
             replyLabelColor: '#2563eb',
-            pageTitle: '📨 Messagerie',
+            pageTitle: 'Messagerie',
             filterReceived: (m, userId) =>
                 m.toRole === 'fournisseur' &&
                 (m.fromRole === 'administrateur' || m.fromRole === 'agent'),
-            // Filtre messages envoyés par ce fournisseur précis
             filterSent: (m, userId) =>
                 m.fromId === userId && m.fromRole === 'fournisseur',
         },
@@ -57,7 +56,7 @@ const Messagerie = ({ user, role }) => {
             replyBannerBg: '#d1fae5',
             replyBannerBorder: '#34d399',
             replyLabelColor: '#065f46',
-            pageTitle: '📨 Messagerie Admin',
+            pageTitle: 'Messagerie Admin',
             filterReceived: (m, userId) =>
                 m.toRole === 'administrateur' &&
                 (m.fromRole === 'agent' || m.fromRole === 'fournisseur'),
@@ -82,7 +81,6 @@ const Messagerie = ({ user, role }) => {
     // ─── Load messages ───────────────────────────────────────────────────────
     const loadMessages = () => {
         const allMessages = JSON.parse(localStorage.getItem(MESSAGES_STORAGE_KEY) || '[]');
-
         const sent = allMessages
             .filter((m) => cfg.filterSent(m, user?.id))
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -154,7 +152,7 @@ const Messagerie = ({ user, role }) => {
                 : cfg.fromRole,
             toId: replyingTo.fromId || null,
             toRole: replyingTo.fromRole,
-            subject: `Re: ${replyingTo.subject}`,
+            subject: `Re: ${replyingTo.subject.replace(/^Re:\s*/, '')}`,
             content: messageForm.content.trim(),
             createdAt: new Date().toISOString(),
             read: false,
@@ -175,6 +173,14 @@ const Messagerie = ({ user, role }) => {
         setMessageForm({ toRole: message.fromRole, subject: '', content: '' });
         setActiveTab('compose');
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        // Marquer comme lu immédiatement si cliqué sur répondre
+        if (!message.read) {
+            const allMessages = JSON.parse(localStorage.getItem(MESSAGES_STORAGE_KEY) || '[]');
+            const updated = allMessages.map((m) => m.id === message.id ? { ...m, read: true } : m);
+            localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(updated));
+            loadMessages();
+        }
     };
 
     const cancelReply = () => {
@@ -184,75 +190,86 @@ const Messagerie = ({ user, role }) => {
 
     const unreadCount = receivedMessages.filter((m) => !m.read).length;
 
-    // ─── Styles dynamiques selon le rôle ────────────────────────────────────
-    const dynStyles = {
-        tabBtnActive: { backgroundColor: cfg.accentColor, color: 'white', borderColor: cfg.accentColor },
-        submitButton: { backgroundColor: cfg.accentColor, color: 'white', padding: '10px 24px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '15px', fontWeight: 'bold' },
-        messageCardUnread: { borderLeft: `4px solid ${cfg.unreadColor}`, backgroundColor: cfg.unreadBg },
-        unreadDot: { color: cfg.unreadColor, marginRight: '6px', fontSize: '10px' },
-        replyBanner: { backgroundColor: cfg.replyBannerBg, border: `1px solid ${cfg.replyBannerBorder}`, borderRadius: '6px', padding: '10px 14px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' },
-        replyLabel: { color: cfg.replyLabelColor, fontWeight: '600', fontSize: '13px' },
-    };
-
     // ─── Render ──────────────────────────────────────────────────────────────
     return (
-        <div style={styles.wrapper}>
-            <h2 style={styles.pageTitle}>{cfg.pageTitle}</h2>
+        <div className="msg-wrapper" style={{
+            '--accent': cfg.accentColor,
+            '--unread': cfg.unreadColor,
+            '--unread-bg': cfg.unreadBg,
+            '--banner-bg': cfg.replyBannerBg,
+            '--banner-border': cfg.replyBannerBorder,
+            '--banner-color': cfg.replyLabelColor,
+        }}>
+            <div className="msg-header">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color: cfg.accentColor}}>
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                    <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+                <h2 className="msg-title">{cfg.pageTitle}</h2>
+            </div>
 
             {/* Tabs */}
-            <div style={styles.tabBar}>
-                {[
-                    { key: 'compose', label: replyingTo ? '↩ Répondre' : '✏️ Nouveau message' },
-                    { key: 'sent', label: `📤 Envoyés (${sentMessages.length})` },
-                    { key: 'received', label: `📥 Reçus${unreadCount > 0 ? ` (${unreadCount} non lus)` : ''}` },
-                ].map((tab) => (
-                    <button
-                        key={tab.key}
-                        style={{
-                            ...styles.tabBtn,
-                            ...(activeTab === tab.key ? dynStyles.tabBtnActive : {}),
-                        }}
-                        onClick={() => {
-                            if (tab.key !== 'compose') {
-                                setReplyingTo(null);
-                                setMessageForm({ toRole: cfg.defaultToRole, subject: '', content: '' });
-                            }
-                            setActiveTab(tab.key);
-                        }}
-                    >
-                        {tab.label}
-                        {tab.key === 'received' && unreadCount > 0 && (
-                            <span style={styles.badge}>{unreadCount}</span>
-                        )}
-                    </button>
-                ))}
+            <div className="msg-tabs">
+                <button
+                    className={`msg-tab-btn ${activeTab === 'compose' ? 'active' : ''}`}
+                    onClick={() => {
+                        setActiveTab('compose');
+                    }}
+                >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                    {replyingTo ? 'Répondre' : 'Nouveau message'}
+                </button>
+                <button
+                    className={`msg-tab-btn ${activeTab === 'sent' ? 'active' : ''}`}
+                    onClick={() => {
+                        setReplyingTo(null);
+                        setMessageForm({ toRole: cfg.defaultToRole, subject: '', content: '' });
+                        setActiveTab('sent');
+                    }}
+                >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    Envoyés ({sentMessages.length})
+                </button>
+                <button
+                    className={`msg-tab-btn ${activeTab === 'received' ? 'active' : ''}`}
+                    onClick={() => {
+                        setReplyingTo(null);
+                        setMessageForm({ toRole: cfg.defaultToRole, subject: '', content: '' });
+                        setActiveTab('received');
+                    }}
+                >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    Reçus
+                    {unreadCount > 0 && <span className="msg-badge">{unreadCount}</span>}
+                </button>
             </div>
 
             {/* ── Compose / Reply ── */}
             {activeTab === 'compose' && (
-                <div style={styles.card}>
+                <div className="msg-card">
                     {replyingTo && (
-                        <div style={dynStyles.replyBanner}>
+                        <div className="msg-reply-banner">
                             <div>
-                                <span style={dynStyles.replyLabel}>↩ Réponse à :</span>
-                                <strong> {replyingTo.subject}</strong>
-                                <span style={styles.replyMeta}>
-                                    {' '}— De {replyingTo.fromName || replyingTo.fromRole} •{' '}
-                                    {new Date(replyingTo.createdAt).toLocaleString('fr-FR')}
+                                <span className="msg-reply-title">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg>
+                                    Réponse à : {replyingTo.subject}
+                                </span>
+                                <span className="msg-reply-meta">
+                                    De {replyingTo.fromName || replyingTo.fromRole} • {new Date(replyingTo.createdAt).toLocaleString('fr-FR', {day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute:'2-digit'}).replace(',', ' à')}
                                 </span>
                             </div>
-                            <button style={styles.cancelBtn} onClick={cancelReply}>✕ Annuler</button>
+                            <button className="btn-cancel-msg" onClick={cancelReply}>✕ Annuler</button>
                         </div>
                     )}
 
                     <form onSubmit={replyingTo ? handleReply : handleSendMessage}>
                         {!replyingTo && (
-                            <div style={styles.formGroup}>
-                                <label style={styles.label}>Destinataire *</label>
+                            <div className="msg-form-group">
+                                <label className="msg-label">Destinataire <span style={{color: '#ef4444'}}>*</span></label>
                                 <select
                                     value={messageForm.toRole}
                                     onChange={(e) => setMessageForm({ ...messageForm, toRole: e.target.value })}
-                                    style={styles.input}
+                                    className="msg-select"
                                 >
                                     {cfg.destinataireOptions.map((opt) => (
                                         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -261,38 +278,40 @@ const Messagerie = ({ user, role }) => {
                             </div>
                         )}
 
-                        <div style={styles.formGroup}>
-                            <label style={styles.label}>Sujet *</label>
+                        <div className="msg-form-group">
+                            <label className="msg-label">Sujet <span style={{color: '#ef4444'}}>*</span></label>
                             <input
                                 type="text"
-                                value={replyingTo ? `Re: ${replyingTo.subject}` : messageForm.subject}
+                                value={replyingTo ? `Re: ${replyingTo.subject.replace(/^Re:\s*/, '')}` : messageForm.subject}
                                 onChange={(e) => !replyingTo && setMessageForm({ ...messageForm, subject: e.target.value })}
-                                style={{ ...styles.input, ...(replyingTo ? styles.inputReadonly : {}) }}
+                                className={`msg-input ${replyingTo ? 'readonly' : ''}`}
                                 readOnly={!!replyingTo}
+                                placeholder="Titre de votre message"
                                 required
                             />
                         </div>
 
-                        <div style={styles.formGroup}>
-                            <label style={styles.label}>Message *</label>
+                        <div className="msg-form-group">
+                            <label className="msg-label">Message <span style={{color: '#ef4444'}}>*</span></label>
                             <textarea
                                 value={messageForm.content}
                                 onChange={(e) => setMessageForm({ ...messageForm, content: e.target.value })}
-                                style={styles.textarea}
-                                placeholder={replyingTo ? 'Écrivez votre réponse...' : 'Écrivez votre message...'}
+                                className="msg-textarea"
+                                placeholder={replyingTo ? 'Saisissez votre réponse...' : 'Saisissez votre message...'}
                                 required
                             />
                         </div>
 
-                        <div style={styles.formActions}>
-                            <button type="submit" style={dynStyles.submitButton}>
-                                {replyingTo ? '↩ Envoyer la réponse' : '📤 Envoyer'}
-                            </button>
+                        <div className="msg-form-actions">
                             {replyingTo && (
-                                <button type="button" style={styles.cancelBtn} onClick={cancelReply}>
+                                <button type="button" className="btn-cancel-msg" onClick={cancelReply}>
                                     Annuler
                                 </button>
                             )}
+                            <button type="submit" className="btn-primary-msg">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                                {replyingTo ? 'Envoyer la réponse' : 'Envoyer le message'}
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -302,24 +321,34 @@ const Messagerie = ({ user, role }) => {
             {activeTab === 'sent' && (
                 <div>
                     {sentMessages.length === 0 ? (
-                        <div style={styles.emptyBox}><p>Aucun message envoyé.</p></div>
+                        <div className="msg-empty">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" style={{marginBottom: '1rem'}}><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                            <p style={{margin: 0}}>Aucun message envoyé pour le moment.</p>
+                        </div>
                     ) : (
-                        <div style={styles.messagesList}>
+                        <div className="msg-list">
                             {sentMessages.map((m) => (
-                                <div key={m.id} style={styles.messageCard}>
-                                    <div style={styles.messageHeader}>
-                                        <div>
-                                            <strong style={styles.subject}>{m.subject || '—'}</strong>
-                                            {m.replyToId && <span style={styles.replyBadge}>↩ Réponse</span>}
+                                <div key={m.id} className="msg-item">
+                                    <div className="msg-item-header">
+                                        <div className="msg-subject-wrap">
+                                            <span className="msg-subject">{m.subject || '—'}</span>
+                                            {m.replyToId && (
+                                                <span className="msg-reply-badge">
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg>
+                                                    Réponse
+                                                </span>
+                                            )}
                                         </div>
-                                        <span style={styles.messageMeta}>
-                                            {new Date(m.createdAt).toLocaleString('fr-FR')}
+                                        <span className="msg-time">
+                                            {new Date(m.createdAt).toLocaleString('fr-FR', {day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute:'2-digit'}).replace(',', ' à')}
                                         </span>
                                     </div>
-                                    <p style={styles.messageText}>{m.content || '—'}</p>
-                                    <small style={styles.messageMeta}>
-                                        À : {cfg.destinataireOptions.find(o => o.value === m.toRole)?.label || m.toRole}
-                                    </small>
+                                    <p className="msg-body">{m.content || '—'}</p>
+                                    <div className="msg-footer">
+                                        <span className="msg-sender">
+                                            À : <strong>{cfg.destinataireOptions.find(o => o.value === m.toRole)?.label || m.toRole}</strong>
+                                        </span>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -331,33 +360,34 @@ const Messagerie = ({ user, role }) => {
             {activeTab === 'received' && (
                 <div>
                     {receivedMessages.length === 0 ? (
-                        <div style={styles.emptyBox}><p>Aucun message reçu.</p></div>
+                        <div className="msg-empty">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" style={{marginBottom: '1rem'}}><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>
+                            <p style={{margin: 0}}>Votre boîte de réception est vide.</p>
+                        </div>
                     ) : (
-                        <div style={styles.messagesList}>
+                        <div className="msg-list">
                             {receivedMessages.map((m) => (
                                 <div
                                     key={m.id}
-                                    style={{
-                                        ...styles.messageCard,
-                                        ...(!m.read ? dynStyles.messageCardUnread : {}),
-                                    }}
+                                    className={`msg-item ${!m.read ? 'unread' : ''}`}
                                 >
-                                    <div style={styles.messageHeader}>
-                                        <div>
-                                            {!m.read && <span style={dynStyles.unreadDot}>●</span>}
-                                            <strong style={styles.subject}>{m.subject || '—'}</strong>
+                                    <div className="msg-item-header">
+                                        <div className="msg-subject-wrap">
+                                            {!m.read && <span className="msg-dot">●</span>}
+                                            <span className="msg-subject">{m.subject || '—'}</span>
                                         </div>
-                                        <span style={styles.messageMeta}>
-                                            {new Date(m.createdAt).toLocaleString('fr-FR')}
+                                        <span className="msg-time">
+                                            {new Date(m.createdAt).toLocaleString('fr-FR', {day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute:'2-digit'}).replace(',', ' à')}
                                         </span>
                                     </div>
-                                    <p style={styles.messageText}>{m.content || '—'}</p>
-                                    <div style={styles.messageFooter}>
-                                        <small style={styles.messageMeta}>
+                                    <p className="msg-body">{m.content || '—'}</p>
+                                    <div className="msg-footer">
+                                        <span className="msg-sender">
                                             De : <strong>{m.fromName || m.fromRole}</strong>
-                                        </small>
-                                        <button style={styles.replyBtn} onClick={() => startReply(m)}>
-                                            ↩ Répondre
+                                        </span>
+                                        <button className="btn-reply-msg" onClick={() => startReply(m)}>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg>
+                                            Répondre
                                         </button>
                                     </div>
                                 </div>
@@ -368,47 +398,6 @@ const Messagerie = ({ user, role }) => {
             )}
         </div>
     );
-};
-
-// ─── Styles statiques ────────────────────────────────────────────────────────
-const styles = {
-    wrapper: { padding: '10px 0', fontFamily: 'sans-serif' },
-    pageTitle: { marginBottom: '16px', color: '#111827', fontSize: '22px' },
-
-    tabBar: { display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' },
-    tabBtn: {
-        padding: '9px 18px', border: '1px solid #d1d5db', borderRadius: '6px',
-        backgroundColor: '#f9fafb', cursor: 'pointer', fontSize: '14px',
-        fontWeight: '500', color: '#374151', position: 'relative',
-    },
-    badge: {
-        position: 'absolute', top: '-6px', right: '-6px',
-        backgroundColor: '#ef4444', color: 'white', borderRadius: '50%',
-        width: '18px', height: '18px', fontSize: '11px',
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-    },
-
-    card: { backgroundColor: 'white', borderRadius: '10px', padding: '20px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' },
-    replyMeta: { color: '#6b7280', fontSize: '12px' },
-
-    formGroup: { marginBottom: '15px' },
-    label: { display: 'block', marginBottom: '5px', fontSize: '14px', fontWeight: '500', color: '#374151' },
-    input: { width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' },
-    inputReadonly: { backgroundColor: '#f9fafb', color: '#6b7280' },
-    textarea: { width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', minHeight: '120px', boxSizing: 'border-box', resize: 'vertical' },
-    formActions: { display: 'flex', gap: '10px', alignItems: 'center' },
-    cancelBtn: { backgroundColor: 'transparent', color: '#6b7280', padding: '10px 16px', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' },
-
-    emptyBox: { backgroundColor: 'white', padding: '30px 20px', borderRadius: '10px', textAlign: 'center', color: '#9ca3af' },
-    messagesList: { display: 'flex', flexDirection: 'column', gap: '12px' },
-    messageCard: { backgroundColor: 'white', padding: '16px', borderRadius: '10px', border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' },
-    messageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' },
-    subject: { fontSize: '15px', color: '#111827' },
-    messageMeta: { color: '#6b7280', fontSize: '12px' },
-    messageText: { marginTop: '4px', marginBottom: '10px', color: '#374151', whiteSpace: 'pre-wrap', fontSize: '14px', lineHeight: '1.5' },
-    messageFooter: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' },
-    replyBtn: { backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', padding: '6px 14px', borderRadius: '5px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' },
-    replyBadge: { marginLeft: '8px', backgroundColor: '#e0f2fe', color: '#0369a1', fontSize: '11px', padding: '2px 7px', borderRadius: '10px' },
 };
 
 export default Messagerie;
