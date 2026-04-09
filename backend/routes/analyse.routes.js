@@ -3,6 +3,8 @@ const router = express.Router();
 const analyseController = require('../controllers/analyse.controller');
 
 
+router.post('/predict', analyseController.predictProduct);
+
 router.post('/', analyseController.createAnalyse);
 
 router.get('/', analyseController.getAllAnalyses);

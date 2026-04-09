@@ -129,19 +129,51 @@ const Home = () => {
   };
 
   // ── Recherche par Scan ──────────────────────────────────────────────────────
-  const handleBarcodeScan = () => {
+  const handleBarcodeScan = async () => {
     setScanError(false);
     const query = barcode.trim();
     if (!query) return;
 
+    // TODO: also search by name if query is not a number? The user asked: 
+    // "ou entre le code barre manuellement ouentre son nom"
     const found = allProducts.find(
-      (p) => p.code_barre === query || p.codeBarres === query
+      (p) => p.code_barre === query || p.codeBarres === query || (p.nom && p.nom.toLowerCase() === query.toLowerCase())
     );
 
     if (found) {
-      setScannedProduct(found);
-      if (isConsommateur) {
-        addToHistory(query);
+      try {
+        const response = await fetch('http://localhost:5000/api/analyses/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+             nb_ingredients: found.ingredients ? found.ingredients.length : 0,
+             ingredients_text: found.description || found.nom || '',
+             // mock or derive these if not in DB:
+             contains_preservatives: found.ingredients?.some(i => i.nom.toLowerCase().includes('conserv')) ? 1 : 0,
+             contains_artificial_colors: found.ingredients?.some(i => i.nom.toLowerCase().includes('coloran')) ? 1 : 0,
+             contains_flavouring: found.ingredients?.some(i => i.nom.toLowerCase().includes('arôm')) ? 1 : 0,
+             nova_group: found.nova_group || 3,
+             nutriscore_num: found.nutriscore || 0,
+             nb_e_numbers: found.ingredients?.filter(i => i.nom.match(/E\d{3}/i)).length || 0,
+             ingredients_length: found.ingredients ? found.ingredients.length : 0
+          })
+        });
+        
+        const data = await response.json();
+        
+        const productWithAI = {
+            ...found,
+            ai_predictions: data.predictions || {}
+        };
+        
+        setScannedProduct(productWithAI);
+        
+        if (isConsommateur) {
+          addToHistory(query);
+        }
+      } catch (err) {
+        console.error("Erreur lors de l'appel à l'IA :", err);
+        setScannedProduct(found); // Fallback sans IA
       }
     } else {
       setScannedProduct(null);

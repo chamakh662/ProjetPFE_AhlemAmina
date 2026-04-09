@@ -15,7 +15,7 @@ const sendResetPasswordEmail = async (toEmail, resetUrl) => {
         subject: '🔐 Réinitialisation de votre mot de passe BioScan',
         html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #16a34a;">🌿 BioScan</h2>
+                <h2 style="color: #16a34a;">BioScan</h2>
                 <h3>Réinitialisation de votre mot de passe</h3>
                 <p>Vous avez demandé à réinitialiser votre mot de passe.</p>
                 <p>Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe :</p>

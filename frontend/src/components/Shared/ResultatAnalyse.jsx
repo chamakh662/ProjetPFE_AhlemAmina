@@ -29,10 +29,10 @@ const ResultatAnalyse = ({ product }) => {
 
                 <div style={styles.healthScoreCard}>
                     <div style={styles.healthScoreRing}>
-                        <span style={styles.healthScoreValue}>{product.scoreBio || 0}</span>
+                        <span style={styles.healthScoreValue}>{product.ai_predictions?.bioscore || product.scoreBio || 0}</span>
                         <span style={styles.healthScoreLabel}>/100</span>
                     </div>
-                    <span style={styles.healthScoreDesc}>Score Santé</span>
+                    <span style={styles.healthScoreDesc}>Score Santé / Bio (IA)</span>
                 </div>
             </div>
 
@@ -60,8 +60,57 @@ const ResultatAnalyse = ({ product }) => {
                         )}
                     </div>
                 </div>
+
+                {/* Section Prédictions IA */}
+                {product.ai_predictions && Object.keys(product.ai_predictions).length > 0 && (
+                    <div style={styles.aiSection}>
+                        <h4 style={styles.sectionHeading}>🤖 Analyse IA & Santé</h4>
+                        <div style={styles.aiCardsContainer}>
+                            
+                            <div style={styles.aiCard}>
+                                <div style={styles.aiCardIcon}>🫀</div>
+                                <div style={styles.aiCardContent}>
+                                    <span style={styles.aiCardTitle}>Risque Cardio</span>
+                                    <span style={{...styles.aiCardValue, color: getRiskColor(product.ai_predictions.cardio_risk)}}>
+                                        {product.ai_predictions.cardio_risk}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div style={styles.aiCard}>
+                                <div style={styles.aiCardIcon}>🩸</div>
+                                <div style={styles.aiCardContent}>
+                                    <span style={styles.aiCardTitle}>Risque Diabète</span>
+                                    <span style={{...styles.aiCardValue, color: getRiskColor(product.ai_predictions.diabetes_risk)}}>
+                                        {product.ai_predictions.diabetes_risk}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div style={styles.aiCard}>
+                                <div style={styles.aiCardIcon}>🧪</div>
+                                <div style={styles.aiCardContent}>
+                                    <span style={styles.aiCardTitle}>Exp. Additifs</span>
+                                    <span style={{...styles.aiCardValue, color: getRiskColor(product.ai_predictions.additive_exposure)}}>
+                                        {product.ai_predictions.additive_exposure}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div style={styles.aiCard}>
+                                <div style={styles.aiCardIcon}>🍔</div>
+                                <div style={styles.aiCardContent}>
+                                    <span style={styles.aiCardTitle}>Ultra-Tranformé</span>
+                                    <span style={{...styles.aiCardValue, color: product.ai_predictions.ultra_transforme ? '#ef4444' : '#10b981'}}>
+                                        {product.ai_predictions.ultra_transforme ? 'Oui' : 'Non'}
+                                    </span>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                )}
             </div>
-            {/* Animation CSS requise pour le fade in */}
             <style dangerouslySetInnerHTML={{
                 __html: `
                 @keyframes fadeInUp {
@@ -71,6 +120,15 @@ const ResultatAnalyse = ({ product }) => {
             `}} />
         </div>
     );
+};
+
+const getRiskColor = (risk) => {
+    if (!risk) return '#64748b';
+    const lowerRisk = risk.toString().toLowerCase();
+    if (lowerRisk === 'low' || lowerRisk === 'faible' || lowerRisk === '0') return '#10b981'; // Green
+    if (lowerRisk === 'medium' || lowerRisk === 'moyen') return '#f59e0b'; // Yellow
+    if (lowerRisk === 'high' || lowerRisk === 'élevé' || lowerRisk === '1') return '#ef4444'; // Red
+    return '#64748b'; // Gray fallback
 };
 
 const styles = {
@@ -108,6 +166,14 @@ const styles = {
     ingredientsList: { display: 'flex', flexWrap: 'wrap', gap: '0.5rem' },
     ingredientPill: { padding: '0.4rem 0.8rem', borderRadius: '0.5rem', border: '1px solid', fontSize: '0.85rem', fontWeight: '500', color: '#1f2937', display: 'flex', alignItems: 'center', gap: '0.25rem' },
     emptyText: { color: '#94a3b8', fontStyle: 'italic', fontSize: '0.85rem' },
+
+    aiSection: { marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px dashed #cbd5e1' },
+    aiCardsContainer: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1rem', marginTop: '1rem' },
+    aiCard: { display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', backgroundColor: '#f8fafc', borderRadius: '1rem', border: '1px solid #e2e8f0', transition: 'transform 0.2s ease', cursor: 'default' },
+    aiCardIcon: { fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', backgroundColor: '#ffffff', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' },
+    aiCardContent: { display: 'flex', flexDirection: 'column' },
+    aiCardTitle: { fontSize: '0.75rem', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.02em', marginBottom: '0.25rem' },
+    aiCardValue: { fontSize: '1rem', fontWeight: '800' }
 };
 
 export default ResultatAnalyse;
