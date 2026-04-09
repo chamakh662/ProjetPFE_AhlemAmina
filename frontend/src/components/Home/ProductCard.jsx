@@ -5,6 +5,7 @@ const ProductCard = ({
     produit,
     onComment,
     onFavorite,
+    onClickCard,
     isFavorite = false,
     user
 }) => {
@@ -64,6 +65,7 @@ const ProductCard = ({
             style={styles.card}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
+            onClick={() => onClickCard && onClickCard(produit)}
         >
             {/* Image */}
             {imageUrl ? (

@@ -1,7 +1,7 @@
 // src/components/Navbar.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUser, FiHeart, FiClock, FiLogOut, FiSun, FiMoon } from 'react-icons/fi';
+import { FiUser, FiHeart, FiClock, FiLogOut, FiSun, FiMoon, FiHome } from 'react-icons/fi';
 import { useTheme } from '../../context/ThemeContext';
 
 const Navbar = ({
@@ -11,6 +11,7 @@ const Navbar = ({
   onHistoryClick,
   onProfileClick,
   onLogout,
+  variant = 'transparent'
 }) => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
@@ -30,7 +31,7 @@ const Navbar = ({
   }, [isMobile]);
 
   return (
-    <nav style={styles.navbar}>
+    <nav style={{ ...styles.navbar, ...(variant === 'solid' ? styles.navbarSolid : {}) }}>
       <div style={styles.container}>
 
         {/* Logo */}
@@ -51,6 +52,9 @@ const Navbar = ({
         {/* Menu Desktop */}
         {!isMobile && (
           <div style={styles.desktopMenu}>
+            <button style={styles.iconButton} onClick={() => navigate('/')} title="Accueil">
+              <FiHome size={20} />
+            </button>
             <button style={styles.iconButton} onClick={toggleTheme} title="Changer le thème">
               {theme === 'dark' ? <FiSun size={20} /> : <FiMoon size={20} />}
             </button>
@@ -102,6 +106,9 @@ const Navbar = ({
       {/* Menu déroulant mobile */}
       {isMobile && isMobileMenuOpen && (
         <div style={styles.mobileMenu}>
+          <button style={styles.mobileLink} onClick={() => { navigate('/'); setIsMobileMenuOpen(false); }}>
+            🏠 Accueil
+          </button>
           <button style={styles.mobileLink} onClick={() => { toggleTheme(); setIsMobileMenuOpen(false); }}>
             {theme === 'dark' ? '☀️ Mode Clair' : '🌙 Mode Sombre'}
           </button>
@@ -146,7 +153,11 @@ const styles = {
     position: 'absolute',
     width: '100%',
     top: 0,
-    zIndex: 100,
+    zIndex: 1000,
+  },
+  navbarSolid: {
+    background: 'linear-gradient(135deg, var(--primary, #10b981), #064e3b)',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
   },
   container: {
     maxWidth: '1200px',

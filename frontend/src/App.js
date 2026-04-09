@@ -17,6 +17,12 @@ import AdminDashboard from './pages/AdminDashboard';
 import AgentDashboard from './pages/AgentDashboard';
 import SupplierDashboard from './pages/SupplierDashboard';
 
+// Pages pour le consommateur
+import FavoritesPage from './components/Home/FavoritesPage';
+import HistoryPage from './components/Home/HistoryPage';
+import ProfilePage from './components/Home/ProfilePage';
+import ProductCommentsPage from './components/Home/ProductCommentsPage';
+
 export default function App() {
   return (
     <ThemeProvider>
@@ -70,6 +76,12 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* ── Nouvelles Pages Consommateur ─────────────────────────── */}
+          <Route path="/favoris" element={<FavoritesPage />} />
+          <Route path="/historique" element={<HistoryPage />} />
+          <Route path="/profil" element={<ProfilePage />} />
+          <Route path="/commentaires" element={<ProductCommentsPage />} />
 
           {/* ── Fallback ─────────────────────────────────────────────── */}
           <Route path="*" element={<Navigate to="/" replace />} />
