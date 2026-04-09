@@ -2,7 +2,6 @@ import React from 'react';
 import { FiHeart, FiTrash2, FiX } from 'react-icons/fi';
 
 const FavoritesModal = ({ favorites, onClose, onRemoveFavorite }) => {
-
   // ✅ Récupère l'id réel du produit (_id MongoDB)
   const getProductId = (product) =>
     product?._id || product?.id_produit || product?.id;
@@ -10,9 +9,10 @@ const FavoritesModal = ({ favorites, onClose, onRemoveFavorite }) => {
   return (
     <div style={styles.overlay} onClick={onClose}>
       <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-
         <div style={styles.header}>
-          <h2 style={styles.title}><FiHeart style={{marginRight: '8px', color: '#ef4444'}} /> Mes Favoris</h2>
+          <h2 style={styles.title}>
+            <FiHeart style={{ marginRight: '10px', color: '#ef4444' }} /> Mes Favoris
+          </h2>
           <button onClick={onClose} style={styles.closeBtn}><FiX /></button>
         </div>
 
@@ -28,12 +28,12 @@ const FavoritesModal = ({ favorites, onClose, onRemoveFavorite }) => {
               return (
                 <div key={productId} style={styles.card}>
                   {/* Image */}
-                  {product.image && (
-                    <img
-                      src={product.image}
-                      alt={product.nom}
-                      style={styles.image}
-                    />
+                  {product.image ? (
+                    <img src={product.image} alt={product.nom} style={styles.image} />
+                  ) : (
+                    <div style={{...styles.image, backgroundColor: 'var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                       <FiHeart color="var(--text-muted)"/>
+                    </div>
                   )}
 
                   {/* Infos produit */}
@@ -48,6 +48,8 @@ const FavoritesModal = ({ favorites, onClose, onRemoveFavorite }) => {
                   <button
                     style={styles.removeBtn}
                     onClick={() => onRemoveFavorite(productId)}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                   >
                     <FiTrash2 size={16} /> Retirer
                   </button>
@@ -64,41 +66,51 @@ const FavoritesModal = ({ favorites, onClose, onRemoveFavorite }) => {
 const styles = {
   overlay: {
     position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-    backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex',
-    backdropFilter: 'blur(4px)',
-    justifyContent: 'center', alignItems: 'center', zIndex: 1000,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex',
+    backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+    justifyContent: 'center', alignItems: 'center', zIndex: 1050,
   },
   modal: {
-    backgroundColor: 'var(--bg-card)', padding: 24, borderRadius: 16,
-    width: '90%', maxWidth: 640, maxHeight: '85vh', overflowY: 'auto',
-    boxShadow: 'var(--shadow-light)',
-    border: '1px solid var(--border-color)'
+    backgroundColor: 'var(--bg-glass, var(--bg-card))', padding: '24px', borderRadius: '20px',
+    width: '90%', maxWidth: '640px', maxHeight: '85vh', overflowY: 'auto',
+    boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+    border: '1px solid var(--border-color, rgba(255,255,255,0.1))',
+    backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)'
   },
   header: {
     display: 'flex', justifyContent: 'space-between',
-    alignItems: 'center', marginBottom: 20,
+    alignItems: 'center', marginBottom: '24px',
   },
-  title: { margin: 0, fontSize: '1.4rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center' },
-  closeBtn: { border: 'none', background: 'none', fontSize: 24, cursor: 'pointer', color: 'var(--text-secondary)' },
-  empty: { textAlign: 'center', padding: '2rem 1rem' },
-  emptyIcon: { fontSize: '3rem', display: 'block', marginBottom: 8, color: 'var(--text-muted)' },
-  emptyText: { color: 'var(--text-secondary)', fontSize: '1rem' },
-  list: { display: 'flex', flexDirection: 'column', gap: 12 },
+  title: { margin: 0, fontSize: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', fontWeight: 'bold' },
+  closeBtn: { 
+    border: 'none', background: 'var(--bg-main)', width: '36px', height: '36px', 
+    borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', 
+    fontSize: '20px', cursor: 'pointer', color: 'var(--text-secondary)', 
+    transition: 'background 0.2s', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' 
+  },
+  empty: { textAlign: 'center', padding: '3rem 1rem' },
+  emptyIcon: { fontSize: '4rem', display: 'flex', justifyContent: 'center', marginBottom: '16px', color: 'rgba(239, 68, 68, 0.5)' },
+  emptyText: { color: 'var(--text-secondary)', fontSize: '1.1rem' },
+  list: { display: 'flex', flexDirection: 'column', gap: '16px' },
   card: {
-    display: 'flex', alignItems: 'center', gap: 12,
-    border: '1px solid var(--border-color)', borderRadius: 12, padding: 12,
-    backgroundColor: 'var(--bg-main)',
-    transition: 'transform 0.2s'
+    display: 'flex', alignItems: 'center', gap: '16px',
+    border: '1px solid var(--border-color)', borderRadius: '16px', padding: '16px',
+    backgroundColor: 'var(--bg-main)', 
+    boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
   },
-  image: { width: 60, height: 60, objectFit: 'cover', borderRadius: 8, flexShrink: 0 },
+  image: { width: '70px', height: '70px', objectFit: 'cover', borderRadius: '12px', flexShrink: 0 },
   info: { flex: 1 },
-  productName: { margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' },
-  productDesc: { margin: '4px 0 0 0', fontSize: 13, color: 'var(--text-muted)' },
+  productName: { margin: 0, fontSize: '1.1rem', fontWeight: '600', color: 'var(--text-primary)' },
+  productDesc: { 
+    margin: '6px 0 0 0', fontSize: '0.9rem', color: 'var(--text-secondary)', 
+    display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' 
+  },
   removeBtn: {
     display: 'flex', alignItems: 'center', gap: '6px',
-    padding: '8px 14px', backgroundColor: 'transparent', color: '#ef4444',
-    border: '1px solid #ef4444', borderRadius: 8, cursor: 'pointer',
-    fontWeight: 600, fontSize: 13, flexShrink: 0, transition: 'all 0.2s'
+    padding: '8px 16px', backgroundColor: 'transparent', color: '#ef4444',
+    border: '1px solid #ef4444', borderRadius: '10px', cursor: 'pointer',
+    fontWeight: '600', fontSize: '0.9rem', flexShrink: 0, transition: 'all 0.2s',
   },
 };
 

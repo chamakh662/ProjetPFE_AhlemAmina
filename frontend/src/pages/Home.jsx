@@ -17,10 +17,6 @@ import Footer from '../components/Home/Footer';
 
 // Composants consommateur uniquement
 import Chatbot from '../components/Home/Chatbot';
-import FavoritesModal from '../components/modals/FavoritesModal';
-import HistoryModal from '../components/modals/HistoryModal';
-import CommentsModal from '../components/modals/CommentsModal';
-import ProfileModal from '../components/modals/ProfileModal';
 
 // Hooks
 import useFavorites from '../hooks/useFavorites';
@@ -33,12 +29,7 @@ const Home = () => {
 
   const isConsommateur = user?.role === 'consommateur';
 
-  // ── Modals ─────────────────────────────────────────────────────────────────
-  const [showFavorites, setShowFavorites] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const [showComments, setShowComments] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  // ── Modals ne sont plus utilisés ici (transformés en pages) ───────
 
   // ── Produits ───────────────────────────────────────────────────────────────
   const [allProducts, setAllProducts] = useState([]);
@@ -76,11 +67,30 @@ const Home = () => {
 
   // ── Chargement produits ────────────────────────────────────────────────────
   useEffect(() => {
+    // 1. Initialiser avec le cache instantanément si disponible
+    const cached = localStorage.getItem('cached_produits');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      setAllProducts(parsed);
+      // Ne mettre à jour l'affichage que s'il n'y a pas de recherche en cours
+      if (!searchQuery.trim()) {
+        setDisplayProducts(parsed);
+      }
+    }
+
+    // 2. Toujours rafraîchir en arrière-plan
     fetch('http://localhost:5000/api/produits?status=approved')
       .then((res) => res.json())
       .then((data) => {
         setAllProducts(data);
-        setDisplayProducts(data);
+        localStorage.setItem('cached_produits', JSON.stringify(data));
+        // Met à jour la liste affichée seulement si aucune recherche n'est tapée
+        setSearchQuery((currentQuery) => {
+           if (!currentQuery.trim()) {
+               setDisplayProducts(data);
+           }
+           return currentQuery;
+        });
       })
       .catch(() => console.log('API indisponible'));
   }, []);
@@ -130,6 +140,9 @@ const Home = () => {
 
     if (found) {
       setScannedProduct(found);
+      if (isConsommateur) {
+        addToHistory(query);
+      }
     } else {
       setScannedProduct(null);
       setScanError(true);
@@ -138,13 +151,8 @@ const Home = () => {
 
   // ── Commentaires ───────────────────────────────────────────────────────────
   const handleOpenComments = (product) => {
-    setSelectedProduct(product);
-    setShowComments(true);
-  };
-
-  const handleCloseComments = () => {
-    setShowComments(false);
-    setSelectedProduct(null);
+    // Redirige vers la nouvelle page en passant le composant via state
+    navigate('/commentaires', { state: { product } });
   };
 
   // ── Déconnexion ────────────────────────────────────────────────────────────
@@ -157,56 +165,12 @@ const Home = () => {
     <div>
       <Navbar
         user={user}
-        // Ces props sont ignorées par la Navbar si l'utilisateur n'est pas consommateur
         favoritesCount={isConsommateur ? favorites.length : 0}
-        onFavoritesClick={() => isConsommateur && setShowFavorites(true)}
-        onHistoryClick={() => isConsommateur && setShowHistory(true)}
-        onProfileClick={() => setShowProfile(true)}
+        onFavoritesClick={() => navigate('/favoris')}
+        onHistoryClick={() => navigate('/historique')}
+        onProfileClick={() => navigate('/profil')}
         onLogout={handleLogout}
       />
-
-      {/* ── Modals consommateur ────────────────────────────────────────── */}
-      {isConsommateur && showFavorites && (
-        <FavoritesModal
-          favorites={favorites}
-          onClose={() => setShowFavorites(false)}
-          onRemoveFavorite={removeFavorite}
-        />
-      )}
-
-      {isConsommateur && showHistory && (
-        <HistoryModal
-          history={searchHistory}
-          onClose={() => setShowHistory(false)}
-          onRemoveItem={removeFromHistory}
-          onClearAll={clearHistory}
-          onUseItem={(item) => {
-            setSearchQuery(item.query);
-            setShowHistory(false);
-          }}
-        />
-      )}
-
-      {showComments && selectedProduct && (
-        <CommentsModal
-          product={selectedProduct}
-          comments={comments}
-          user={user}
-          onClose={handleCloseComments}
-          onAddComment={addComment}
-          onEditComment={editComment}
-          onDeleteComment={deleteComment}
-        />
-      )}
-
-      {showProfile && user && (
-        <ProfileModal
-          user={user}
-          onClose={() => setShowProfile(false)}
-          onUpdateProfile={updateUser}
-          onLogout={handleLogout}
-        />
-      )}
 
       {/* ── Sections communes ──────────────────────────────────────────── */}
       <HeroSection
