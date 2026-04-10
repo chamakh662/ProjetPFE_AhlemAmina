@@ -45,7 +45,7 @@ const S = {
 };
 
 // ==================== LISTE PAYS ====================
-const PAYS = ['Tunisie', 'France', 'Algérie', 'Maroc', 'Italie', 'Espagne', 'Allemagne', 'États-Unis', /* ajoute le reste ici ou importe d'un fichier */];
+const PAYS = ['Tunisie', 'France', 'Algérie', 'Maroc', 'Italie', 'Espagne', 'Allemagne', 'États-Unis'];
 
 // ==================== COMPOSANTS INTERNES (Toast + ConfirmModal) ====================
 const Toast = ({ toasts }) => (
@@ -117,7 +117,9 @@ const ProductManagement = () => {
 
     const emptyForm = { nom: '', description: '', code_barre: '', origine: '', ingredients: '', image: '', pointsDeVente: [] };
     const [productForm, setProductForm] = useState(emptyForm);
-    const [newPoint, setNewPoint] = useState({ nom: '', adresse: '' });
+
+    // ✅ newPoint avec lat/lng inclus
+    const [newPoint, setNewPoint] = useState({ nom: '', adresse: '', lat: null, lng: null });
 
     useEffect(() => { loadAll(); }, []);
 
@@ -151,7 +153,7 @@ const ProductManagement = () => {
         setConfirm({ open: true, message, onConfirm: () => { setConfirm(c => ({ ...c, open: false })); resolve(true); } });
     });
 
-    // Actions (simplifiées)
+    // ── Actions produits ──────────────────────────────────────────────────────
     const acceptProduct = async (product) => {
         try {
             await fetchJsonWithTimeout(`/api/produits/${product._id}/approve`, { method: 'PUT', body: JSON.stringify({ validatedBy: user?.id || user?._id }) });
@@ -207,11 +209,22 @@ const ProductManagement = () => {
         } catch (err) { toast(err.message, 'error'); }
     };
 
+    // ── Actions points de vente ───────────────────────────────────────────────
+    // ✅ handleAddPoint transmet lat/lng à l'API
     const handleAddPoint = async () => {
         if (!newPoint.nom.trim() || !newPoint.adresse.trim()) return toast('Nom et adresse requis', 'error');
         try {
-            await fetchJsonWithTimeout('/api/pointDeVente', { method: 'POST', body: JSON.stringify(newPoint) });
-            setNewPoint({ nom: '', adresse: '' });
+            await fetchJsonWithTimeout('/api/pointDeVente', {
+                method: 'POST',
+                body: JSON.stringify({
+                    nom: newPoint.nom.trim(),
+                    adresse: newPoint.adresse.trim(),
+                    lat: newPoint.lat || null,
+                    lng: newPoint.lng || null,
+                })
+            });
+            // ✅ Reset complet avec lat/lng
+            setNewPoint({ nom: '', adresse: '', lat: null, lng: null });
             await loadAll();
             toast('Point de vente ajouté ✅');
         } catch (err) { toast(err.message, 'error'); }
