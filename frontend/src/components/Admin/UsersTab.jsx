@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { apiFetch, AuthExpiredError } from '../../utils/apiFetch';
 
 const getRoleColor = (role) => ({
     consommateur: '#10b981',
@@ -37,7 +38,6 @@ const formatDate = (dateStr, id) => {
 };
 
 const API = 'http://localhost:5000/api';
-const getToken = () => localStorage.getItem('token');
 
 /**
  * Props :
@@ -70,18 +70,14 @@ const UsersTab = ({ allUsers = [], setAllUsers, statsByRole = {}, loading = fals
         setActionLoading(true);
         setErrorMsg('');
         try {
-            const res = await fetch(`${API}/users/${userId}`, {
+            const res = await apiFetch(`${API}/users/${userId}`, {
                 method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${getToken()}` }
             });
-            if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
-                throw new Error(data.message || `Erreur ${res.status}`);
-            }
             // ✅ Met à jour la liste locale après suppression réussie
             setAllUsers(prev => prev.filter(u => (u._id || u.id) !== userId));
             setShowModal(false);
         } catch (err) {
+            if (err instanceof AuthExpiredError) return;
             setErrorMsg(`Erreur suppression : ${err.message}`);
         } finally {
             setActionLoading(false);
@@ -96,18 +92,13 @@ const UsersTab = ({ allUsers = [], setAllUsers, statsByRole = {}, loading = fals
         setActionLoading(true);
         setErrorMsg('');
         try {
-            const res = await fetch(`${API}/users/${userId}`, {
+            const res = await apiFetch(`${API}/users/${userId}`, {
                 method: 'PUT',
                 headers: {
-                    'Authorization': `Bearer ${getToken()}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ isBlocked: !target.isBlocked })
             });
-            if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
-                throw new Error(data.message || `Erreur ${res.status}`);
-            }
             const data = await res.json();
             const updatedUser = data.user || { ...target, isBlocked: !target.isBlocked };
 
@@ -121,6 +112,7 @@ const UsersTab = ({ allUsers = [], setAllUsers, statsByRole = {}, loading = fals
                 setSelectedUser(prev => ({ ...prev, isBlocked: updatedUser.isBlocked }));
             }
         } catch (err) {
+            if (err instanceof AuthExpiredError) return;
             setErrorMsg(`Erreur blocage : ${err.message}`);
         } finally {
             setActionLoading(false);

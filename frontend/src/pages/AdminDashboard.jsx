@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { FiMenu } from 'react-icons/fi';
+import './Dashboard.css';
 
 import Sidebar from '../components/Shared/Sidebar';
 import OverviewTab from '../components/Admin/OverviewTab';
@@ -9,6 +11,7 @@ import ProductsTab from '../components/Admin/ProductsTab';
 import ReportsTab from '../components/Admin/ReportsTab';
 import Messagerie from '../components/Shared/Messagerie';
 import CreateAgent from '../components/Admin/CreateAgent';
+import { apiFetch, AuthExpiredError } from '../utils/apiFetch';
 
 const API = 'http://localhost:5000/api';
 
@@ -20,6 +23,7 @@ const AdminDashboard = () => {
     const [statsByRole, setStatsByRole] = useState({});
     const [loadingUsers, setLoadingUsers] = useState(false);
     const [fetchError, setFetchError] = useState('');
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     // ✅ CORRECTION : useEffect manquant — charge les utilisateurs au montage
     useEffect(() => {
@@ -27,18 +31,9 @@ const AdminDashboard = () => {
             setLoadingUsers(true);
             setFetchError('');
             try {
-                const token = localStorage.getItem('token');
-                const res = await fetch(`${API}/users`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
+                const res = await apiFetch(`${API}/users`, {
+                    headers: { 'Content-Type': 'application/json' },
                 });
-
-                if (!res.ok) {
-                    const data = await res.json().catch(() => ({}));
-                    throw new Error(data.message || `Erreur ${res.status}`);
-                }
 
                 const users = await res.json();
                 setAllUsers(users);
@@ -56,6 +51,11 @@ const AdminDashboard = () => {
                 setStatsByRole(stats);
 
             } catch (err) {
+                if (err instanceof AuthExpiredError) {
+                    // évite d'afficher le bandeau: on redirige vers login
+                    navigate('/');
+                    return;
+                }
                 console.error('❌ Erreur chargement users:', err.message);
                 setFetchError(err.message);
             } finally {
@@ -64,7 +64,12 @@ const AdminDashboard = () => {
         };
 
         fetchUsers();
-    }, []); // ← se lance une seule fois au montage du composant
+    }, [navigate]); // ← se lance au montage (navigate est stable)
+
+    // Si l'utilisateur est logout (token expiré), sortir du dashboard
+    useEffect(() => {
+        if (user === null) navigate('/');
+    }, [user, navigate]);
 
     // Gestion de la déconnexion
     const handleLogout = () => {
@@ -100,15 +105,28 @@ const AdminDashboard = () => {
     };
 
     return (
-        <div style={styles.container}>
+        <div className="dashboardContainer">
+            <button
+                className="mobileMenuButton"
+                type="button"
+                onClick={() => setIsSidebarOpen(true)}
+            >
+                <FiMenu size={20} />
+            </button>
             <Sidebar
                 role="administrateur"
                 activeTab={activeTab}
-                setActiveTab={setActiveTab}
+                setActiveTab={(key) => { setActiveTab(key); setIsSidebarOpen(false); }}
                 onLogout={handleLogout}
                 user={user}
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
             />
-            <div style={styles.content}>
+            <div
+                className={`dashboardOverlay ${isSidebarOpen ? 'visible' : ''}`}
+                onClick={() => setIsSidebarOpen(false)}
+            />
+            <div className="dashboardContent">
                 {/* Affichage erreur globale de chargement */}
                 {fetchError && (
                     <div style={styles.errorBanner}>

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { FiMenu } from 'react-icons/fi';
+import './Dashboard.css';
 
 import Sidebar from '../components/Shared/Sidebar';   // ✅ modifié
 import AddProductTab from '../components/Shared/AddProductTab';
@@ -12,6 +14,7 @@ const SupplierDashboard = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('addProduct');
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const handleLogout = () => {
         logout();
@@ -27,17 +30,30 @@ const SupplierDashboard = () => {
     const unreadCount = useUnreadCount(user?.id);
 
     return (
-        <div style={styles.container}>
+        <div className="dashboardContainer">
+            <button
+                className="mobileMenuButton"
+                type="button"
+                onClick={() => setIsSidebarOpen(true)}
+            >
+                <FiMenu size={20} />
+            </button>
             <Sidebar
                 role="fournisseur"              // ✅ ajouté
                 activeTab={activeTab}
-                setActiveTab={setActiveTab}
+                setActiveTab={(key) => { setActiveTab(key); setIsSidebarOpen(false); }}
                 onLogout={handleLogout}         // ✅ renommé pour cohérence
                 unreadCount={unreadCount}       // ✅ ajouté
                 user={user}
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+            />
+            <div
+                className={`dashboardOverlay ${isSidebarOpen ? 'visible' : ''}`}
+                onClick={() => setIsSidebarOpen(false)}
             />
 
-            <div style={styles.content}>
+            <div className="dashboardContent">
                 {activeTab === 'addProduct' && (
                     <AddProductTab
                         user={user}
@@ -58,18 +74,6 @@ const SupplierDashboard = () => {
             </div>
         </div>
     );
-};
-
-const styles = {
-    container: {
-        display: 'flex',
-        minHeight: '100vh',
-        backgroundColor: '#f5f5f5'
-    },
-    content: {
-        flex: 1,
-        padding: '30px'
-    }
 };
 
 export default SupplierDashboard;

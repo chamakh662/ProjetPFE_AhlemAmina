@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { FiMenu } from 'react-icons/fi';
+import './Dashboard.css';
 
 import Sidebar from '../components/Shared/Sidebar';   // ✅ modifié
 import OverviewTab from '../components/Agent/OverviewTabl';
@@ -13,6 +15,7 @@ const AgentDashboard = () => {
   const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -31,29 +34,30 @@ const AgentDashboard = () => {
   };
 
   return (
-    <div style={styles.container}>
+    <div className="dashboardContainer">
+      <button
+        className="mobileMenuButton"
+        type="button"
+        onClick={() => setIsSidebarOpen(true)}
+      >
+        <FiMenu size={20} />
+      </button>
       <Sidebar
         role="agent"
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={(key) => { setActiveTab(key); setIsSidebarOpen(false); }}
         onLogout={handleLogout}
         user={user}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
       />
-      <div style={styles.content}>{renderContent()}</div>
+      <div
+        className={`dashboardOverlay ${isSidebarOpen ? 'visible' : ''}`}
+        onClick={() => setIsSidebarOpen(false)}
+      />
+      <div className="dashboardContent">{renderContent()}</div>
     </div>
   );
-};
-
-const styles = {
-  container: {
-    display: 'flex',
-    minHeight: '100vh',
-    backgroundColor: '#f5f5f5'
-  },
-  content: {
-    flex: 1,
-    padding: '30px'
-  }
 };
 
 export default AgentDashboard;

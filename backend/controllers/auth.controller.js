@@ -40,10 +40,9 @@ exports.register = async (req, res) => {
             password,
             role: backendRole
         });
- console.log("test 3",user);
+console.log("test 3",user);
         // Générer token
         const token = generateToken(user);
-      
         res.status(201).json({
             message: "Inscription réussie",
             token,

@@ -9,7 +9,7 @@ const protect = async (req, res, next) => {
             nom: 'dev',
             prenom: 'bypass',
             email: 'dev-bypass@example.com',
-            role: 'administrateur' // ✅ CORRECTION : 'administrateur' au lieu de 'admin'
+            role: 'administrateur' 
         };
         console.warn('⚠️ Authentification désactivée (mode développement)');
         return next();
@@ -35,12 +35,12 @@ const protect = async (req, res, next) => {
         // ✅ Log détaillé pour diagnostiquer
         console.error('❌ JWT verify error:', err.name, '-', err.message);
         if (err.name === 'TokenExpiredError') {
-            return res.status(401).json({ message: 'Token expiré, reconnectez-vous' });
+            return res.status(401).json({ code: 'TOKEN_EXPIRED', message: 'Token expiré, reconnectez-vous' });
         }
         if (err.name === 'JsonWebTokenError') {
-            return res.status(401).json({ message: 'Token invalide' });
+            return res.status(401).json({ code: 'TOKEN_INVALID', message: 'Token invalide' });
         }
-        res.status(401).json({ message: 'Invalid token' });
+        res.status(401).json({ code: 'TOKEN_INVALID', message: 'Invalid token' });
     }
 };
 

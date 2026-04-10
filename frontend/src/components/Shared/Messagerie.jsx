@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Messagerie.css';
+import { apiFetch, AuthExpiredError } from '../../utils/apiFetch';
 
 const API_URL = 'http://localhost:5000/api/messages';
 
@@ -60,11 +61,7 @@ const Messagerie = ({ user, role }) => {
     // ─── Load messages ───────────────────────────────────────────────────────
     const loadMessages = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(API_URL, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!res.ok) throw new Error('Erreur de chargement');
+            const res = await apiFetch(API_URL);
             const allMessages = await res.json();
             
             const userId = user?.id || user?._id;
@@ -80,6 +77,7 @@ const Messagerie = ({ user, role }) => {
                 .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             setReceivedMessages(received);
         } catch (err) {
+            if (err instanceof AuthExpiredError) return;
             console.error('Erreur :', err);
         }
     };
@@ -98,11 +96,9 @@ const Messagerie = ({ user, role }) => {
         }
 
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(API_URL, {
+            const res = await apiFetch(API_URL, {
                 method: 'POST',
                 headers: { 
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json' 
                 },
                 body: JSON.stringify({
@@ -113,16 +109,13 @@ const Messagerie = ({ user, role }) => {
                     content: messageForm.content.trim(),
                 })
             });
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.message || errData.error || 'Erreur réseau/serveur');
-            }
             
             await loadMessages();
             setMessageForm({ toEmail: '', subject: '', content: '' });
             alert('Message envoyé avec succès.');
             setActiveTab('sent');
         } catch (err) {
+            if (err instanceof AuthExpiredError) return;
             console.error(err);
             alert('Erreur lors de l\'envoi du message : ' + err.message);
         }
@@ -137,11 +130,9 @@ const Messagerie = ({ user, role }) => {
         }
 
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(API_URL, {
+            const res = await apiFetch(API_URL, {
                 method: 'POST',
                 headers: { 
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json' 
                 },
                 body: JSON.stringify({
@@ -153,10 +144,6 @@ const Messagerie = ({ user, role }) => {
                     replyToId: replyingTo._id,
                 })
             });
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.message || errData.error || 'Erreur réseau/serveur');
-            }
 
             await loadMessages();
             setReplyingTo(null);
@@ -164,6 +151,7 @@ const Messagerie = ({ user, role }) => {
             alert('Réponse envoyée avec succès.');
             setActiveTab('sent');
         } catch (err) {
+            if (err instanceof AuthExpiredError) return;
             console.error(err);
             alert('Erreur lors de l\'envoi de la réponse : ' + err.message);
         }
@@ -179,13 +167,12 @@ const Messagerie = ({ user, role }) => {
         // Marquer comme lu immédiatement si cliqué sur répondre
         if (!message.read) {
             try {
-                const token = localStorage.getItem('token');
-                await fetch(`${API_URL}/${message._id}/read`, {
+                await apiFetch(`${API_URL}/${message._id}/read`, {
                     method: 'PUT',
-                    headers: { 'Authorization': `Bearer ${token}` }
                 });
                 await loadMessages();
             } catch (err) {
+                if (err instanceof AuthExpiredError) return;
                 console.error('Erreur markRead', err);
             }
         }

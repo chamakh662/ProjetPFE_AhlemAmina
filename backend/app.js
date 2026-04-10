@@ -46,7 +46,8 @@ app.use('/api/historiques', require('./routes/historique.routes'));
 app.use('/api/favoris', require('./routes/favoris.routes'));
 app.use('/api/notifications', require('./routes/notification.routes'));
 app.use('/api/messages', require('./routes/message.routes'));
-
+app.use('/api/dashboard', require('./routes/dashboard.routes'));
+app.use('/api/analyses', require('./routes/analyse.routes'));
 // Middleware global d'erreurs
 app.use((err, req, res, next) => {
     console.error(err.stack);

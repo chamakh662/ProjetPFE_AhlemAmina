@@ -1,9 +1,11 @@
 import React from 'react';
 import { 
-  FiPieChart, FiBox, FiMessageSquare, FiActivity, FiUser, FiUserPlus,
-  FiPlusSquare, FiBell, FiBarChart2, FiUsers, FiShield, FiLogOut, FiSun, FiMoon
+FiPieChart, FiBox, FiMessageSquare, FiActivity, FiUser, FiUserPlus,
+FiPlusSquare, FiBell, FiBarChart2, FiUsers, FiShield, FiLogOut, FiSun, FiMoon,
+FiX
 } from 'react-icons/fi';
 import { useTheme } from '../../context/ThemeContext';
+import './Sidebar.css';
 
 const Sidebar = ({
     role = 'agent',
@@ -13,6 +15,8 @@ const Sidebar = ({
     user,
     unreadCount = 0,
     extraBadges = {},
+    isOpen = false,
+    onClose = () => {},
 }) => {
     const { theme, toggleTheme } = useTheme();
 
@@ -63,15 +67,24 @@ const Sidebar = ({
                 'Administrateur';
 
     return (
-        <div style={styles.sidebar}>
-            {/* ── Titre / Logo ── */}
-            <div style={styles.logoContainer}>
-                {cfg.titleIcon && <span style={styles.logoIcon}>{cfg.titleIcon}</span>}
-                <h2 style={styles.title}>{cfg.title}</h2>
+        <div style={styles.sidebar} className={`sidebar${isOpen ? ' mobileOpen' : ''}`}>
+            <div className="sidebarTopBar">
+                <div style={styles.logoContainer} className="logoContainer">
+                    {cfg.titleIcon && <span style={styles.logoIcon}>{cfg.titleIcon}</span>}
+                    <h2 style={styles.title}>{cfg.title}</h2>
+                </div>
+                <button
+                    type="button"
+                    className="sidebarCloseButton"
+                    onClick={onClose}
+                    aria-label="Fermer le menu"
+                >
+                    <FiX size={22} />
+                </button>
             </div>
 
             {/* ── Navigation ── */}
-            <nav style={styles.nav}>
+            <nav style={styles.nav} className="nav">
                 {cfg.menuItems.map(item => {
                     const isActive = activeTab === item.key;
 
@@ -83,12 +96,16 @@ const Sidebar = ({
                     return (
                         <button
                             key={item.key}
-                            onClick={() => setActiveTab(item.key)}
+                            onClick={() => {
+                                setActiveTab(item.key);
+                                if (onClose) onClose();
+                            }}
                             style={isActive ? styles.activeButton : styles.menuButton}
+                            className={isActive ? 'activeButton' : 'menuButton'}
                         >
-                            <span style={styles.btnContent}>
-                                <span style={styles.btnLabel}>
-                                    <span style={styles.btnIcon}>{item.icon}</span>
+                            <span style={styles.btnContent} className="btnContent">
+                                <span style={styles.btnLabel} className="btnLabel">
+                                    <span style={styles.btnIcon} className="btnIcon">{item.icon}</span>
                                     {item.label}
                                 </span>
                                 {showUnreadBadge && (
@@ -108,18 +125,18 @@ const Sidebar = ({
             </nav>
 
             {/* ── Footer : infos utilisateur + déconnexion ── */}
-            <div style={styles.footer}>
-                <div style={styles.userInfo}>
-                    <div style={styles.avatar}>{initiales}</div>
-                    <div style={styles.userText}>
-                        <span style={styles.userName}>{nomComplet}</span>
-                        <span style={styles.userRole}>{roleLabel}</span>
+            <div style={styles.footer} className="footer">
+                <div style={styles.userInfo} className="userInfo">
+                    <div style={styles.avatar} className="avatar">{initiales}</div>
+                    <div style={styles.userText} className="userText">
+                        <span style={styles.userName} className="userName">{nomComplet}</span>
+                        <span style={styles.userRole} className="userRole">{roleLabel}</span>
                     </div>
                 </div>
-                <button onClick={toggleTheme} style={styles.themeBtn} title="Changer le thème">
+                <button onClick={toggleTheme} style={styles.themeBtn} className="themeBtn" title="Changer le thème">
                     {theme === 'dark' ? <FiSun size={18} /> : <FiMoon size={18} />}
                 </button>
-                <button onClick={onLogout} style={styles.logoutBtn} title="Déconnexion">
+                <button onClick={onLogout} style={styles.logoutBtn} className="logoutBtn" title="Déconnexion">
                     <FiLogOut size={18} />
                 </button>
             </div>

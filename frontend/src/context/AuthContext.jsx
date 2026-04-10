@@ -34,6 +34,17 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  // Logout global si le token a expiré (détecté par apiFetch)
+  useEffect(() => {
+    const onExpired = () => {
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      setUser(null);
+    };
+    window.addEventListener('auth:expired', onExpired);
+    return () => window.removeEventListener('auth:expired', onExpired);
+  }, []);
+
   // ---------- LOGIN ----------
   const login = async (email, password) => {
     const res = await fetch(`${API_AUTH}/login`, {
