@@ -406,3 +406,71 @@ exports.deleteProduit = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+// ─── Recherche NLP Intelligente ───────────────────────────────────────────────
+const { spawn } = require('child_process');
+
+exports.searchProduitsNLP = async (req, res) => {
+    try {
+        const query = req.query.q || '';
+        
+        // 1. Récupérer tous les produits (de préférence approuvés)
+        const produits = await Produit.find({ status: 'approved' })
+            .populate('ingredients', 'nom description estBio')
+            .lean();
+            
+        if (!query.trim()) {
+            return res.status(200).json(produits); // Si pas de requête, on renvoie tout
+        }
+
+        // 2. Préparer le payload pour Python
+        const payload = JSON.stringify({ query, products: produits });
+
+        // 3. Exécuter le script Python
+        const scriptPath = path.join(process.cwd(), 'modelsIA', 'search_nlp.py');
+        const pythonProcess = spawn('python', [scriptPath]);
+        
+        let output = '';
+        let errorOutput = '';
+
+        pythonProcess.stdout.on('data', (data) => {
+            output += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+            errorOutput += data.toString();
+        });
+
+        pythonProcess.on('close', (code) => {
+            if (code !== 0) {
+                console.error("Python NLP Script Error:", errorOutput);
+                // Fallback de sécurité : recherche basique
+                const lowerQ = query.toLowerCase();
+                const fallbackResults = produits.filter(p => 
+                    p.nom?.toLowerCase().includes(lowerQ) || 
+                    p.description?.toLowerCase().includes(lowerQ)
+                );
+                return res.status(200).json(fallbackResults);
+            }
+            try {
+                const result = JSON.parse(output);
+                if (result.success) {
+                    res.status(200).json(result.results);
+                } else {
+                    console.error("Script NLP erreur interne:", result.error);
+                    res.status(500).json({ error: result.error });
+                }
+            } catch (err) {
+                console.error("Erreur de parsing de la sortie Python:", err, output);
+                res.status(500).json({ error: "Erreur serveur NLP" });
+            }
+        });
+        
+        pythonProcess.stdin.write(payload);
+        pythonProcess.stdin.end();
+
+    } catch (error) {
+        console.error('Erreur searchProduitsNLP:', error);
+        res.status(500).json({ message: error.message });
+    }
+};

@@ -73,6 +73,7 @@ const ResultatAnalyse = ({ product }) => {
                                     <span style={styles.aiCardTitle}>Risque Cardio</span>
                                     <span style={{...styles.aiCardValue, color: getRiskColor(product.ai_predictions.cardio_risk)}}>
                                         {product.ai_predictions.cardio_risk}
+                                        {product.ai_predictions.cardio_risk_proba ? ` (${product.ai_predictions.cardio_risk_proba}%)` : ''}
                                     </span>
                                 </div>
                             </div>
@@ -83,6 +84,7 @@ const ResultatAnalyse = ({ product }) => {
                                     <span style={styles.aiCardTitle}>Risque Diabète</span>
                                     <span style={{...styles.aiCardValue, color: getRiskColor(product.ai_predictions.diabetes_risk)}}>
                                         {product.ai_predictions.diabetes_risk}
+                                        {product.ai_predictions.diabetes_risk_proba ? ` (${product.ai_predictions.diabetes_risk_proba}%)` : ''}
                                     </span>
                                 </div>
                             </div>

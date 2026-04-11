@@ -24,7 +24,7 @@ const ScannerSection = ({ barcode, setBarcode, handleBarcodeScan, scannedProduct
                             <span style={styles.badge}>DÉCOUVERTE</span>
                             <h2 style={styles.title}>L'Analyseur</h2>
                             <p style={styles.subtitle}>
-                                Tapez le code-barre d'un produit pour révéler instantanément sa composition détaillée, son origine et son impact santé.
+                                Tapez ou scannez le code-barres d'un produit pour révéler instantanément sa composition détaillée, son origine et son impact santé.
                             </p>
                         </div>
 
@@ -38,18 +38,17 @@ const ScannerSection = ({ barcode, setBarcode, handleBarcodeScan, scannedProduct
                                     onChange={(e) => setBarcode(e.target.value)}
                                     onFocus={() => setFocused(true)}
                                     onBlur={() => setFocused(false)}
-                                    placeholder="les 13 chiffres (ex: 3012...)"
+                                    placeholder="Scannez ou tapez un code-barres..."
                                     style={styles.input}
-                                    maxLength={13}
                                 />
                                 <button
                                     onClick={handleBarcodeScan}
                                     style={{
                                         ...styles.btnAnalyze,
-                                        opacity: barcode.length >= 8 ? 1 : 0.6,
-                                        cursor: barcode.length >= 8 ? 'pointer' : 'not-allowed'
+                                        opacity: barcode.length >= 3 ? 1 : 0.6,
+                                        cursor: barcode.length >= 3 ? 'pointer' : 'not-allowed'
                                     }}
-                                    disabled={barcode.length < 8}
+                                    disabled={barcode.length < 3}
                                 >
                                     Analyser ⚡
                                 </button>

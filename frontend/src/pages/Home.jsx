@@ -103,28 +103,42 @@ const Home = () => {
   }, [searchQuery, allProducts]);
 
   // ── Recherche ──────────────────────────────────────────────────────────────
-  const handleSearch = (e) => {
+  const handleSearch = async (e) => {
     e.preventDefault();
-    const query = searchQuery.trim().toLowerCase();
+    const query = searchQuery.trim();
 
     if (!query) {
       setDisplayProducts(allProducts);
       return;
     }
 
-    const results = allProducts.filter(
-      (p) =>
-        p.nom?.toLowerCase().includes(query) ||
-        p.name?.toLowerCase().includes(query) ||
-        p.titre?.toLowerCase().includes(query) ||
-        p.libelle?.toLowerCase().includes(query)
-    );
+    try {
+      const response = await fetch(`http://localhost:5000/api/produits/search?q=${encodeURIComponent(query)}`);
+      if (!response.ok) throw new Error('Erreur serveur OCR/NLP');
+      const results = await response.json();
+      
+      setDisplayProducts(results);
 
-    setDisplayProducts(results);
+      // Historique uniquement pour les consommateurs et si résultats trouvés
+      if (isConsommateur && results.length > 0) {
+        addToHistory(query);
+      }
+    } catch (err) {
+      console.error("Erreur avec la recherche NLP:", err);
+      // Fallback local
+      const lowerQuery = query.toLowerCase();
+      const results = allProducts.filter(
+        (p) =>
+          p.nom?.toLowerCase().includes(lowerQuery) ||
+          p.name?.toLowerCase().includes(lowerQuery) ||
+          p.description?.toLowerCase().includes(lowerQuery) ||
+          (p.ingredients && p.ingredients.some(ing => ing.nom?.toLowerCase().includes(lowerQuery)))
+      );
+      setDisplayProducts(results);
 
-    // Historique uniquement pour les consommateurs et si résultats trouvés
-    if (isConsommateur && results.length > 0) {
-      addToHistory(searchQuery.trim());
+      if (isConsommateur && results.length > 0) {
+        addToHistory(query);
+      }
     }
   };
 
@@ -134,28 +148,37 @@ const Home = () => {
     const query = barcode.trim();
     if (!query) return;
 
-    // TODO: also search by name if query is not a number? The user asked: 
-    // "ou entre le code barre manuellement ouentre son nom"
-    const found = allProducts.find(
-      (p) => p.code_barre === query || p.codeBarres === query || (p.nom && p.nom.toLowerCase() === query.toLowerCase())
-    );
+    const lowerQuery = query.toLowerCase();
+    
+    // Recherche par code-barres uniquement (exclusivement pour le scan)
+    const found = allProducts.find((p) => {
+      if (p.code_barre === query || p.codeBarres === query) return true;
+      return false;
+    });
 
     if (found) {
       try {
+        // Calcul intelligent de variables pour donner des prédictions IA réalistes selon la base locale
+        const nbIngs = found.ingredients ? found.ingredients.length : 0;
+        const eNumbers = found.ingredients ? found.ingredients.filter(i => i.nom && i.nom.match(/(E\d{3}|Conservateur|Émulsifiant)/i)).length : 0;
+        // Nova estimé (1=brut, 4=ultra transformé) basé sur le nb d'additifs et d'ingrédients
+        const estimatedNova = (nbIngs > 5 || eNumbers > 0) ? 4 : (nbIngs > 2 ? 3 : 1);
+        // Nutriscore (Nutriscore Nummers: de -15 très sain à +40 très mauvais) extrapolé via scoreBio
+        const estimatedNutri = found.scoreBio ? (100 - found.scoreBio) / 2 - 10 : (nbIngs * 3 + eNumbers * 5);
+
         const response = await fetch('http://localhost:5000/api/analyses/predict', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-             nb_ingredients: found.ingredients ? found.ingredients.length : 0,
+             nb_ingredients: nbIngs,
              ingredients_text: found.description || found.nom || '',
-             // mock or derive these if not in DB:
-             contains_preservatives: found.ingredients?.some(i => i.nom.toLowerCase().includes('conserv')) ? 1 : 0,
-             contains_artificial_colors: found.ingredients?.some(i => i.nom.toLowerCase().includes('coloran')) ? 1 : 0,
-             contains_flavouring: found.ingredients?.some(i => i.nom.toLowerCase().includes('arôm')) ? 1 : 0,
-             nova_group: found.nova_group || 3,
-             nutriscore_num: found.nutriscore || 0,
-             nb_e_numbers: found.ingredients?.filter(i => i.nom.match(/E\d{3}/i)).length || 0,
-             ingredients_length: found.ingredients ? found.ingredients.length : 0
+             contains_preservatives: found.ingredients?.some(i => i.nom && i.nom.toLowerCase().includes('conserv')) ? 1 : 0,
+             contains_artificial_colors: found.ingredients?.some(i => i.nom && i.nom.toLowerCase().includes('coloran')) ? 1 : 0,
+             contains_flavouring: found.ingredients?.some(i => i.nom && i.nom.toLowerCase().includes('arôm')) ? 1 : 0,
+             nova_group: found.nova_group || estimatedNova,
+             nutriscore_num: found.nutriscore || estimatedNutri,
+             nb_e_numbers: found.nb_e_numbers || eNumbers,
+             ingredients_length: nbIngs
           })
         });
         
