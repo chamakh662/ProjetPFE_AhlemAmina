@@ -6,7 +6,7 @@ import './Dashboard.css';
 
 import Sidebar from '../components/Shared/Sidebar';   // ✅ modifié
 import AddProductTab from '../components/Shared/AddProductTab';
-import MyProductsTab from '../components/Suplier/ MyProductsTab';
+import MyProductsTab from '../components/Suplier/MyProductsTab';
 import Notifications, { useUnreadCount } from '../components/Suplier/Notifications'; // ✅ hook importé
 import Messagerie from '../components/Shared/Messagerie';
 

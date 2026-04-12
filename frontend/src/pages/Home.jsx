@@ -14,6 +14,7 @@ import HeroSection from '../components/Home/HeroSection';
 import ScannerSection from '../components/Home/ScannerSection';
 import ProductsSection from '../components/Home/ProductsSection';
 import Footer from '../components/Home/Footer';
+import ResultatAnalyse from '../components/Shared/ResultatAnalyse';
 
 // Composants consommateur uniquement
 import Chatbot from '../components/Home/Chatbot';
@@ -38,6 +39,11 @@ const Home = () => {
   const [barcode, setBarcode] = useState('');
   const [scannedProduct, setScannedProduct] = useState(null);
   const [scanError, setScanError] = useState(false);
+
+  // States pour la recherche Hero
+  const [searchMode, setSearchMode] = useState('produit');
+  const [ingredientResult, setIngredientResult] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // ── Hooks consommateur ─────────────────────────────────────────────────────
   // Les hooks sont toujours appelés (règle des hooks React),
@@ -99,6 +105,7 @@ const Home = () => {
   useEffect(() => {
     if (!searchQuery.trim()) {
       setDisplayProducts(allProducts);
+      setIngredientResult(null);
     }
   }, [searchQuery, allProducts]);
 
@@ -109,37 +116,90 @@ const Home = () => {
 
     if (!query) {
       setDisplayProducts(allProducts);
+      setIngredientResult(null);
       return;
     }
 
-    try {
-      const response = await fetch(`http://localhost:5000/api/produits/search?q=${encodeURIComponent(query)}`);
-      if (!response.ok) throw new Error('Erreur serveur OCR/NLP');
-      const results = await response.json();
-      
-      setDisplayProducts(results);
+    setIsAnalyzing(true);
+    setIngredientResult(null);
 
-      // Historique uniquement pour les consommateurs et si résultats trouvés
-      if (isConsommateur && results.length > 0) {
-        addToHistory(query);
+    if (searchMode === 'produit') {
+      try {
+        const response = await fetch(`http://localhost:5000/api/produits/search?q=${encodeURIComponent(query)}`);
+        if (!response.ok) throw new Error('Erreur serveur OCR/NLP');
+        const results = await response.json();
+        
+        setDisplayProducts(results);
+
+        if (isConsommateur && results.length > 0) {
+          addToHistory(query);
+        }
+      } catch (err) {
+        console.error("Erreur avec la recherche NLP:", err);
+        // Fallback local
+        const lowerQuery = query.toLowerCase();
+        const results = allProducts.filter(
+          (p) =>
+            p.nom?.toLowerCase().includes(lowerQuery) ||
+            p.name?.toLowerCase().includes(lowerQuery) ||
+            p.description?.toLowerCase().includes(lowerQuery) ||
+            (p.ingredients && p.ingredients.some(ing => ing.nom?.toLowerCase().includes(lowerQuery)))
+        );
+        setDisplayProducts(results);
+
+        if (isConsommateur && results.length > 0) {
+          addToHistory(query);
+        }
       }
-    } catch (err) {
-      console.error("Erreur avec la recherche NLP:", err);
-      // Fallback local
-      const lowerQuery = query.toLowerCase();
-      const results = allProducts.filter(
-        (p) =>
-          p.nom?.toLowerCase().includes(lowerQuery) ||
-          p.name?.toLowerCase().includes(lowerQuery) ||
-          p.description?.toLowerCase().includes(lowerQuery) ||
-          (p.ingredients && p.ingredients.some(ing => ing.nom?.toLowerCase().includes(lowerQuery)))
-      );
-      setDisplayProducts(results);
+    } else {
+      // Mode Ingrédient
+      try {
+        const ingList = query.split(',').map(s => s.trim()).filter(s => s);
+        const nbIngs = ingList.length;
+        const eNumbers = ingList.filter(i => i.match(/(E\d{3}|Conservateur|Émulsifiant)/i)).length;
+        
+        const estimatedNova = (nbIngs > 5 || eNumbers > 0) ? 4 : (nbIngs > 2 ? 3 : 1);
+        const estimatedNutri = (nbIngs * 3 + eNumbers * 5);
 
-      if (isConsommateur && results.length > 0) {
-        addToHistory(query);
+        const aiResponse = await fetch('http://localhost:5000/api/analyses/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                nb_ingredients: nbIngs,
+                ingredients_text: query,
+                contains_preservatives: ingList.some(i => i.toLowerCase().includes('conserv')) ? 1 : 0,
+                contains_artificial_colors: ingList.some(i => i.toLowerCase().includes('coloran')) ? 1 : 0,
+                contains_flavouring: ingList.some(i => i.toLowerCase().includes('arôm')) ? 1 : 0,
+                nova_group: estimatedNova,
+                nutriscore_num: estimatedNutri,
+                nb_e_numbers: eNumbers,
+                ingredients_length: nbIngs
+            })
+        });
+        const data = await aiResponse.json();
+
+        const customProduct = {
+            nom: "Analyse des ingrédients",
+            description: `Ingrédients analysés : ${query}`,
+            ingredients: ingList.map(nom => ({ nom, estBio: false })),
+            ai_predictions: data.predictions || {},
+            scoreBio: data.predictions?.bioscore || 50,
+            image: null, // L'image fallback s'affichera
+            origine: "Analyse personnalisée",
+            marque: "BioScan AI"
+        };
+
+        setIngredientResult(customProduct);
+
+        if (isConsommateur) {
+            addToHistory(query);
+        }
+      } catch (err) {
+        console.error("Erreur avec l'analyse d'ingrédients:", err);
       }
     }
+    
+    setIsAnalyzing(false);
   };
 
   // ── Recherche par Scan ──────────────────────────────────────────────────────
@@ -233,6 +293,8 @@ const Home = () => {
         setSearchQuery={setSearchQuery}
         displayProducts={displayProducts}
         handleSearch={handleSearch}
+        searchMode={searchMode}
+        setSearchMode={setSearchMode}
       />
 
 
@@ -249,17 +311,35 @@ const Home = () => {
         scanError={scanError}
       />
 
-      <ProductsSection
-        displayProducts={displayProducts}
-        user={user}
-        handleAddFavorite={addFavorite}
-        handleOpenComments={handleOpenComments}
-        isFavorite={isFavorite}
-        getAverageRating={getAverageRating}
-        getProductComments={getProductComments}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-      />
+      {isAnalyzing && (
+         <div style={{ textAlign: 'center', padding: '3rem 0', fontSize: '1.2rem', color: '#64748b', backgroundColor: '#f8fafc' }}>
+            <span style={{ display: 'inline-block', animation: 'spin 2s linear infinite', marginRight: '0.5rem' }}>⏳</span>
+            Analyse IA en cours...
+         </div>
+      )}
+
+      {!isAnalyzing && searchMode === 'ingredient' && ingredientResult ? (
+        <section id="products-section" style={{ backgroundColor: '#f8fafc', padding: '4rem 1.5rem', display: 'flex', justifyContent: 'center' }}>
+            <div style={{ maxWidth: '1000px', width: '100%' }}>
+                <h2 style={{ fontSize: '2rem', fontWeight: '800', color: '#0f172a', marginBottom: '2rem', textAlign: 'center' }}>
+                    Résultat de l'analyse IA
+                </h2>
+                <ResultatAnalyse product={ingredientResult} />
+            </div>
+        </section>
+      ) : (
+        <ProductsSection
+            displayProducts={displayProducts}
+            user={user}
+            handleAddFavorite={addFavorite}
+            handleOpenComments={handleOpenComments}
+            isFavorite={isFavorite}
+            getAverageRating={getAverageRating}
+            getProductComments={getProductComments}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+        />
+      )}
 
       {/* ── Chatbot — consommateur uniquement ─────────────────────────── */}
       {isConsommateur && <Chatbot user={user} addToHistory={addToHistory} />}

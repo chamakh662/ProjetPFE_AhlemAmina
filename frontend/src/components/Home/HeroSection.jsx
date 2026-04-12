@@ -1,12 +1,30 @@
 // src/components/Home/HeroSection.jsx
 import React from 'react';
 
-const HeroSection = ({ searchQuery, setSearchQuery, handleSearch, displayProducts }) => (
+const HeroSection = ({ searchQuery, setSearchQuery, handleSearch, displayProducts, searchMode, setSearchMode }) => (
     <section style={styles.hero}>
         {/* Overlay sombre pour lisibilité */}
         <div style={styles.overlay} />
 
         <div style={styles.heroContent}>
+            {/* ── Mode Selector ── */}
+            <div style={styles.modeSelector}>
+                <button
+                    type="button"
+                    style={searchMode === 'produit' ? styles.modeBtnActive : styles.modeBtn}
+                    onClick={() => setSearchMode('produit')}
+                >
+                    Produit
+                </button>
+                <button
+                    type="button"
+                    style={searchMode === 'ingredient' ? styles.modeBtnActive : styles.modeBtn}
+                    onClick={() => setSearchMode('ingredient')}
+                >
+                    Ingrédient
+                </button>
+            </div>
+
             {/* ── Barre de recherche EN HAUT ── */}
             <div style={styles.searchWrapper}>
                 <form 
@@ -26,7 +44,7 @@ const HeroSection = ({ searchQuery, setSearchQuery, handleSearch, displayProduct
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Nom du produit (ex: Lait, Pommes, Pain...)"
+                        placeholder={searchMode === 'produit' ? "Nom du produit (ex: Lait, Pommes, Pain...)" : "Liste d'ingrédients (ex: Sucre, Sel, E120...)"}
                         style={styles.searchInput}
                     />
                     {searchQuery.trim() && (
@@ -98,6 +116,37 @@ const styles = {
         maxWidth: '800px',
         padding: '0 1.5rem',
         gap: '1.25rem',
+    },
+
+    /* ── Mode selector ── */
+    modeSelector: {
+        display: 'flex',
+        gap: '0.75rem',
+        marginBottom: '0.2rem',
+    },
+    modeBtn: {
+        padding: '0.5rem 1.25rem',
+        borderRadius: '2rem',
+        border: '1px solid rgba(255,255,255,0.6)',
+        backgroundColor: 'rgba(0,0,0,0.3)',
+        color: 'rgba(255,255,255,0.9)',
+        cursor: 'pointer',
+        fontSize: '0.95rem',
+        fontWeight: '500',
+        transition: 'all 0.2s ease',
+        backdropFilter: 'blur(4px)',
+    },
+    modeBtnActive: {
+        padding: '0.5rem 1.25rem',
+        borderRadius: '2rem',
+        border: '1px solid #16a34a',
+        backgroundColor: '#16a34a',
+        color: 'white',
+        cursor: 'pointer',
+        fontSize: '0.95rem',
+        fontWeight: '600',
+        transition: 'all 0.2s ease',
+        boxShadow: '0 4px 10px rgba(22, 163, 74, 0.4)',
     },
 
     /* ── Search bar ── */
