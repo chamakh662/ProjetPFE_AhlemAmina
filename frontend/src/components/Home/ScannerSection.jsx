@@ -35,20 +35,24 @@ const ScannerSection = ({ barcode, setBarcode, handleBarcodeScan, scannedProduct
                                 <input
                                     type="text"
                                     value={barcode}
-                                    onChange={(e) => setBarcode(e.target.value)}
+                                    onChange={(e) => {
+                                        const onlyDigits = e.target.value.replace(/\D/g, '').slice(0, 13);
+                                        setBarcode(onlyDigits);
+                                    }}
                                     onFocus={() => setFocused(true)}
                                     onBlur={() => setFocused(false)}
-                                    placeholder="Scannez ou tapez un code-barres..."
+                                    placeholder="Scannez ou tapez un code-barres (13 chiffres)..."
                                     style={styles.input}
+                                    maxLength={13}
                                 />
                                 <button
                                     onClick={handleBarcodeScan}
                                     style={{
                                         ...styles.btnAnalyze,
-                                        opacity: barcode.length >= 3 ? 1 : 0.6,
-                                        cursor: barcode.length >= 3 ? 'pointer' : 'not-allowed'
+                                        opacity: barcode.length === 13 ? 1 : 0.6,
+                                        cursor: barcode.length === 13 ? 'pointer' : 'not-allowed'
                                     }}
-                                    disabled={barcode.length < 3}
+                                    disabled={barcode.length !== 13}
                                 >
                                     Analyser ⚡
                                 </button>

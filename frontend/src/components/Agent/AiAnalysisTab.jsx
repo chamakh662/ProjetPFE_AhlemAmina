@@ -88,18 +88,42 @@ const predictionsToTags = (predictions) => {
 };
 
 const buildPredictPayload = (text) => {
-    const parts = String(text || '').split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean);
-    const nb_e_numbers = (text.match(/\be\d{2,4}\b/gi) || []).length;
+    const rawText = String(text || '');
+    const lowerText = rawText.toLowerCase();
+    const parts = rawText.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean);
+    const nb_e_numbers = (rawText.match(/\be\d{2,4}\b/gi) || []).length;
+    
+    // Heuristiques améliorées pour palier à l'absence ou au remplacement du vrai score
+    let nova_group = 1;
+    let contains_preservatives = /conserv|benzo|sorb|nitrit|e2\d{2}/i.test(lowerText) ? 1 : 0;
+    let contains_artificial_colors = /colorant|e1[0-9]{2}|e15/i.test(lowerText) ? 1 : 0;
+    let contains_flavouring = /arôme|arome|flavour/i.test(lowerText) ? 1 : 0;
+    
+    if (parts.length > 5 || nb_e_numbers > 0 || contains_preservatives || contains_artificial_colors || contains_flavouring || /sirop|dextrose|maltodextrine|hydrogéné/i.test(lowerText)) {
+        nova_group = 4;
+    } else if (/sucre|sel|huile/i.test(lowerText)) {
+        nova_group = 3;
+    } else if (parts.length > 1) {
+        nova_group = 2;
+    }
+
+    let nutriscore_num = 0;
+    if (/sucre|sirop|miel|glucose|fructose/i.test(lowerText)) nutriscore_num += 4;
+    if (/huile|beurre|graisse|gras/i.test(lowerText)) nutriscore_num += 3;
+    if (/sel|sodium/i.test(lowerText)) nutriscore_num += 3;
+    if (/fruit|légume|legume\b|fibre/i.test(lowerText)) nutriscore_num -= 3;
+    if (/lait|protéine/i.test(lowerText)) nutriscore_num -= 1;
+
     return {
         nb_ingredients: Math.max(1, parts.length),
-        contains_preservatives: /conserv|benzo|sorb|nitrit|e\d/i.test(text) ? 1 : 0,
-        contains_artificial_colors: /colorant|e1[0-9]{2}|e15/i.test(text) ? 1 : 0,
-        contains_flavouring: /arôme|arome|flavour/i.test(text) ? 1 : 0,
-        nova_group: Math.min(4, 1 + Math.floor(parts.length / 5)),
-        nutriscore_num: 2,
+        contains_preservatives,
+        contains_artificial_colors,
+        contains_flavouring,
+        nova_group,
+        nutriscore_num: Math.max(-5, Math.min(15, nutriscore_num)),
         nb_e_numbers,
-        ingredients_length: text.length,
-        ingredients_text: text.slice(0, 2000),
+        ingredients_length: rawText.length,
+        ingredients_text: rawText.slice(0, 2000),
     };
 };
 
@@ -145,7 +169,7 @@ const Sandbox = () => {
         setTags([]);
         setSandboxError('');
         try {
-            const res = await fetch(`${API}/analyses/predict`, {
+            const res = await apiFetch(`${API}/analyses/predict`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(buildPredictPayload(rawIngredients)),
@@ -232,69 +256,133 @@ const Sandbox = () => {
 
 // ─── FILE D'ATTENTE CONFIANCE FAIBLE ─────────────────────────────────────────
 
-const LowConfidenceQueue = ({ rows, onCorrect, onValidate, busyId }) => (
+const QueueRow = ({ r, onCorrect, onValidate, onReject, busyId }) => {
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [tags, setTags] = useState(null);
+
+    const handleAnalyze = async () => {
+        if (tags) { setTags(null); return; } // Toggle off
+        const text = r.ingredientsText || r.name;
+        setIsAnalyzing(true);
+        try {
+            const res = await apiFetch(`${API}/analyses/predict`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(buildPredictPayload(text)),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || `Erreur ${res.status}`);
+
+            const fromModel = predictionsToTags(data.predictions);
+            const fromText = detectTags(text);
+            const seen = new Set();
+            const uniq = [];
+            for (const t of [...fromModel, ...fromText]) {
+                if (seen.has(t.label)) continue;
+                seen.add(t.label);
+                uniq.push(t);
+            }
+            setTags(uniq.slice(0, 24));
+        } catch (err) {
+            setTags([{ label: 'Erreur analyse', tone: 'red' }, ...detectTags(text)]);
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', borderBottom: '1px solid #e2e8f0' }}>
+            <div className="aiTableRow" style={{ borderBottom: 'none' }}>
+                <div style={{ minWidth: 0 }}>
+                    <div className="aiProductName">{r.name}</div>
+                    <div className="aiProductMeta">
+                        {r.lastSeen} · {r.productStatus === 'pending' ? 'En attente' : 'Approuvé'}
+                    </div>
+                </div>
+                <div>
+                    <Pill tone={
+                        r.category === 'Élevé' ? 'red' :
+                            r.category === 'Moyen' ? 'amber' :
+                                r.category === 'Faible' ? 'green' : 'slate'
+                    }>
+                        {r.category}
+                    </Pill>
+                </div>
+                <div>
+                    <div className="aiConfRow">
+                        <div className="aiConfBar">
+                            <div className="aiConfFill" style={{ width: `${r.confidence}%` }} />
+                        </div>
+                        <span className="aiConfPct">{r.confidence}%</span>
+                    </div>
+                </div>
+                <div className="aiRowActions" style={{ gap: '6px' }}>
+                    <button type="button" onClick={handleAnalyze} className="aiBtn aiBtn--ghost" style={{ padding: '8px 10px', fontSize: '0.75rem', color: '#6366f1' }}>
+                        <Sparkles size={14} style={{ marginRight: '4px' }} /> {tags ? "Masquer IA" : "Analyse IA"}
+                    </button>
+                    {r.productStatus === 'pending' && (
+                        <button type="button" onClick={() => onReject(r)} disabled={busyId === r.id} className="aiBtn aiBtn--ghost" style={{ padding: '8px 10px', fontSize: '0.75rem', color: '#dc2626' }}>
+                            <AlertOctagon size={14} style={{ marginRight: '4px' }} />Rejeter
+                        </button>
+                    )}
+                    {r.productStatus !== 'pending' && (
+                        <button type="button" onClick={() => onCorrect(r)} disabled={busyId === r.id} className="aiBtn aiBtn--ghost" style={{ padding: '8px 10px', fontSize: '0.75rem' }}>
+                            <Pencil size={14} style={{ marginRight: '4px' }} />Corriger
+                        </button>
+                    )}
+                    <button type="button" onClick={() => onValidate(r)} disabled={busyId === r.id} className="aiBtn aiBtn--ok" style={{ padding: '8px 10px', fontSize: '0.75rem', backgroundColor: r.productStatus === 'pending' ? '#10b981' : undefined, color: r.productStatus === 'pending' ? '#fff' : undefined }}>
+                        <CheckCircle2 size={14} style={{ marginRight: '4px' }} />{r.productStatus === 'pending' ? 'Accepter' : 'Valider'}
+                    </button>
+                </div>
+            </div>
+            
+            {(tags || isAnalyzing) && (
+                <div style={{ padding: '12px 16px', backgroundColor: '#f8fafc', borderTop: '1px dashed #cbd5e1', fontSize: '0.85rem' }}>
+                    <div style={{ marginBottom: '8px', color: '#475569', fontWeight: 500 }}>
+                        Ingrédients détectés : <span style={{ fontWeight: 400 }}>{r.ingredientsText || "Aucun ingrédient fourni"}</span>
+                    </div>
+                    {isAnalyzing ? (
+                        <div className="aiLoading" style={{ color: '#6366f1' }}><span className="aiDot" />Analyse IA en cours…</div>
+                    ) : tags && tags.length ? (
+                        <div className="aiTagRow" style={{ marginTop: '8px' }}>
+                            {tags.map((t, idx) => (
+                                <Pill key={`${t.label}-${idx}`} tone={t.tone}>{t.label}</Pill>
+                            ))}
+                        </div>
+                    ) : tags && tags.length === 0 ? (
+                        <span style={{ color: '#475569' }}>Aucun résultat probant de l'IA.</span>
+                    ) : null}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const LowConfidenceQueue = ({ rows, onCorrect, onValidate, onReject, busyId }) => (
     <Section
-        title={"File d'attente \"Confiance Faible\""}
-        subtitle="Produits en attente ou approuvés avec un score bio faible (données réelles)."
+        title={"Produits en attente & Validation IA"}
+        subtitle="Produits soumis par les fournisseurs (en attente) ou approuvés avec un score bio faible."
         icon={AlertOctagon}
-        right={< Pill tone="red" > {rows.length} alerte(s)</Pill >}
+        right={<Pill tone="red">{rows.length} produit(s)</Pill>}
     >
-        <div className="aiTableWrap">
-            <div className="aiTableHead">
+        <div className="aiTableWrap" style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+            <div className="aiTableHead" style={{ backgroundColor: '#f1f5f9' }}>
                 <div>Produit</div>
                 <div>Risque</div>
-                <div>Score Bio</div>
+                <div>Confiance / Bio</div>
                 <div style={{ textAlign: 'right' }}>Actions</div>
             </div>
-            <div className="aiTableBody">
+            <div className="aiTableBody" style={{ padding: 0 }}>
                 {rows.length === 0 ? (
                     <div className="aiTableEmpty">Aucune alerte pour le moment.</div>
                 ) : (
                     rows.map((r) => (
-                        <div key={r.id} className="aiTableRow">
-                            <div style={{ minWidth: 0 }}>
-                                <div className="aiProductName">{r.name}</div>
-                                <div className="aiProductMeta">
-                                    {r.lastSeen} · {r.productStatus === 'pending' ? 'En attente' : 'Approuvé'}
-                                </div>
-                            </div>
-                            <div>
-                                <Pill tone={
-                                    r.category === 'Élevé' ? 'red' :
-                                        r.category === 'Moyen' ? 'amber' :
-                                            r.category === 'Faible' ? 'green' : 'slate'
-                                }>
-                                    {r.category}
-                                </Pill>
-                            </div>
-                            <div>
-                                <div className="aiConfRow">
-                                    <div className="aiConfBar">
-                                        <div className="aiConfFill" style={{ width: `${r.confidence}%` }} />
-                                    </div>
-                                    <span className="aiConfPct">{r.confidence}%</span>
-                                </div>
-                            </div>
-                            <div className="aiRowActions">
-                                <button type="button" onClick={() => onCorrect(r)}
-                                    disabled={busyId === r.id}
-                                    className="aiBtn aiBtn--ghost"
-                                    style={{ padding: '8px 12px', fontSize: '0.75rem' }}>
-                                    <Pencil size={14} />Corriger
-                                </button>
-                                <button type="button" onClick={() => onValidate(r)}
-                                    disabled={busyId === r.id}
-                                    className="aiBtn aiBtn--ok"
-                                    style={{ padding: '8px 12px', fontSize: '0.75rem' }}>
-                                    <CheckCircle2 size={14} />Valider
-                                </button>
-                            </div>
-                        </div>
+                        <QueueRow key={r.id} r={r} onCorrect={onCorrect} onValidate={onValidate} onReject={onReject} busyId={busyId} />
                     ))
                 )}
             </div>
         </div>
-    </Section >
+    </Section>
 );
 
 // ─── MÉTRIQUES ───────────────────────────────────────────────────────────────
@@ -517,6 +605,27 @@ const AiAnalysisTab = () => {
         }
     };
 
+    // Rejeter un produit en attente (fournisseur)
+    const onReject = async (row) => {
+        setBusyId(row.id);
+        try {
+            await apiFetch(`${API}/produits/${row.id}/reject`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    validatedBy: user?.id || user?._id,
+                    agentName: `${user?.prenom || ''} ${user?.nom || ''}`.trim() || 'Agent',
+                }),
+            });
+            await loadData();
+        } catch (e) {
+            if (e instanceof AuthExpiredError) return;
+            setError(e.message || 'Erreur');
+        } finally {
+            setBusyId(null);
+        }
+    };
+
     const onEditSeverity = (code) => {
         const next = (s) => s === 'Faible' ? 'Moyenne' : s === 'Moyenne' ? 'Élevée' : 'Faible';
         const row = additives.find((a) => a.code === code);
@@ -553,6 +662,7 @@ const AiAnalysisTab = () => {
                 rows={lowConfidenceRows}
                 onCorrect={onCorrect}
                 onValidate={onValidate}
+                onReject={onReject}
                 busyId={busyId}
             />
             <Metrics accuracy={accuracy} timings={timings} categories={categories} />

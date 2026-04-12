@@ -16,6 +16,7 @@ const ResultatAnalyse = ({ product }) => {
     const imageUrl = getImageUrl(product.image);
     const origin = product.origine || 'Inconnue';
     const marque = product.marque || product.brand || 'Non spécifiée';
+    const barcode = product.code_barre || product.codeBarres;
 
     return (
         <div style={{ ...styles.analysisReport, animation: 'fadeInUp 0.5s ease forwards' }}>
@@ -42,6 +43,9 @@ const ResultatAnalyse = ({ product }) => {
                     <div style={styles.brandTag}>{marque}</div>
                     <h3 style={styles.reportTitle}>{product.nom}</h3>
                     <p style={styles.reportOrigin}>📍 Origine : <strong>{origin}</strong></p>
+                    {barcode && (
+                        <p style={styles.reportBarcode}>🏷️ Code-barres : <strong>{barcode}</strong></p>
+                    )}
                 </div>
 
                 <p style={styles.reportDesc}>{product.description || "Aucune description détaillée n'est disponible."}</p>
@@ -60,6 +64,21 @@ const ResultatAnalyse = ({ product }) => {
                         )}
                     </div>
                 </div>
+
+                {/* Section Points de Vente */}
+                {product.pointsDeVente && product.pointsDeVente.length > 0 && (
+                    <div style={styles.pointsVenteSection}>
+                        <h4 style={styles.sectionHeading}>🏪 Points de Vente</h4>
+                        <div style={styles.pointsVenteList}>
+                            {product.pointsDeVente.map((pv, idx) => (
+                                <div key={pv._id || idx} style={styles.pointVenteCard}>
+                                    <strong style={styles.pointVenteName}>{pv.nom || 'Magasin'}</strong>
+                                    {pv.adresse && <span style={styles.pointVenteAddress}>📍 {pv.adresse}</span>}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Section Prédictions IA */}
                 {product.ai_predictions && Object.keys(product.ai_predictions).length > 0 && (
@@ -160,7 +179,8 @@ const styles = {
     reportHeader: { borderBottom: '1px solid #e2e8f0', paddingBottom: '1rem' },
     brandTag: { fontSize: '0.8rem', fontWeight: '700', color: '#2563eb', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' },
     reportTitle: { fontSize: '1.8rem', fontWeight: '800', color: '#0f172a', margin: '0 0 0.5rem 0', lineHeight: 1.1 },
-    reportOrigin: { fontSize: '0.9rem', color: '#475569', margin: 0 },
+    reportOrigin: { fontSize: '0.9rem', color: '#475569', margin: '0 0 0.25rem 0' },
+    reportBarcode: { fontSize: '0.9rem', color: '#475569', margin: 0 },
     reportDesc: { fontSize: '0.95rem', color: '#334155', lineHeight: 1.5, margin: 0 },
 
     ingredientsSection: { marginTop: '0.5rem' },
@@ -168,6 +188,12 @@ const styles = {
     ingredientsList: { display: 'flex', flexWrap: 'wrap', gap: '0.5rem' },
     ingredientPill: { padding: '0.4rem 0.8rem', borderRadius: '0.5rem', border: '1px solid', fontSize: '0.85rem', fontWeight: '500', color: '#1f2937', display: 'flex', alignItems: 'center', gap: '0.25rem' },
     emptyText: { color: '#94a3b8', fontStyle: 'italic', fontSize: '0.85rem' },
+
+    pointsVenteSection: { marginTop: '1rem', paddingTop: '1rem', borderTop: '1px dashed #cbd5e1' },
+    pointsVenteList: { display: 'flex', flexWrap: 'wrap', gap: '0.75rem' },
+    pointVenteCard: { padding: '0.5rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', minWidth: '140px' },
+    pointVenteName: { fontSize: '0.85rem', fontWeight: '600', color: '#1e293b', marginBottom: '0.25rem' },
+    pointVenteAddress: { fontSize: '0.75rem', color: '#64748b' },
 
     aiSection: { marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px dashed #cbd5e1' },
     aiCardsContainer: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1rem', marginTop: '1rem' },

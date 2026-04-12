@@ -88,15 +88,19 @@ const Home = () => {
     fetch('http://localhost:5000/api/produits?status=approved')
       .then((res) => res.json())
       .then((data) => {
-        setAllProducts(data);
-        localStorage.setItem('cached_produits', JSON.stringify(data));
-        // Met à jour la liste affichée seulement si aucune recherche n'est tapée
-        setSearchQuery((currentQuery) => {
-           if (!currentQuery.trim()) {
-               setDisplayProducts(data);
-           }
-           return currentQuery;
-        });
+        if (Array.isArray(data)) {
+            setAllProducts(data);
+            localStorage.setItem('cached_produits', JSON.stringify(data));
+            // Met à jour la liste affichée seulement si aucune recherche n'est tapée
+            setSearchQuery((currentQuery) => {
+               if (!currentQuery.trim()) {
+                   setDisplayProducts(data);
+               }
+               return currentQuery;
+            });
+        } else {
+            console.error('L\'API n\'a pas retourné un tableau :', data);
+        }
       })
       .catch(() => console.log('API indisponible'));
   }, []);
@@ -129,10 +133,14 @@ const Home = () => {
         if (!response.ok) throw new Error('Erreur serveur OCR/NLP');
         const results = await response.json();
         
-        setDisplayProducts(results);
+        if (Array.isArray(results)) {
+            setDisplayProducts(results);
 
-        if (isConsommateur && results.length > 0) {
-          addToHistory(query);
+            if (isConsommateur && results.length > 0) {
+              addToHistory(query);
+            }
+        } else {
+            setDisplayProducts([]);
         }
       } catch (err) {
         console.error("Erreur avec la recherche NLP:", err);

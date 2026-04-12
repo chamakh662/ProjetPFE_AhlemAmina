@@ -5,6 +5,27 @@ import urllib.parse
 try:
     import joblib
     import pandas as pd
+    
+    # Patch for scikit-learn > 1.3 loading older models
+    import sklearn.ensemble
+    try:
+        import sklearn.ensemble._gb_losses
+    except ImportError:
+        import types
+        dummy_gb_losses = types.ModuleType("sklearn.ensemble._gb_losses")
+        
+        class DummyLoss: pass
+        dummy_gb_losses.BinomialDeviance = DummyLoss
+        dummy_gb_losses.MultinomialDeviance = DummyLoss
+        dummy_gb_losses.LossFunction = DummyLoss
+        dummy_gb_losses.LeastSquaresError = DummyLoss
+        dummy_gb_losses.LeastAbsoluteError = DummyLoss
+        dummy_gb_losses.HuberLossFunction = DummyLoss
+        dummy_gb_losses.QuantileLossFunction = DummyLoss
+        
+        sys.modules["sklearn.ensemble._gb_losses"] = dummy_gb_losses
+        sklearn.ensemble._gb_losses = dummy_gb_losses
+
 except ImportError as e:
     print(json.dumps({"error": f"Missing library: {str(e)}"}))
     sys.exit(1)

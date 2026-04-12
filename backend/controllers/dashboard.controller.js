@@ -148,13 +148,16 @@ exports.getAgentAiAnalysis = async (req, res) => {
         lastSeen: new Date(d).toLocaleString('fr-FR'),
         productStatus: p.status,
         scoreBio: score,
+        ingredientsText: Array.isArray(p.ingredients) ? p.ingredients.map(i => i.nom).join(', ') : ''
       };
     };
 
     const [pending, lowApproved] = await Promise.all([
       Produit.find({ status: 'pending' })
+        .populate('ingredients', 'nom')
         .sort({ updatedAt: -1 }).limit(30).lean(),
       Produit.find({ status: 'approved', scoreBio: { $lt: 55 }, validatedBy: agentObjectId })
+        .populate('ingredients', 'nom')
         .sort({ validatedAt: -1 }).limit(30).lean(),
     ]);
 
