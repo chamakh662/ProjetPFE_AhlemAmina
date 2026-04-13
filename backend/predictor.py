@@ -142,6 +142,12 @@ def main():
                 predictions[key] = get_mock_prediction(key, features)
                 if key in ['cardio_risk', 'diabetes_risk']:
                     predictions[f'{key}_proba'] = round(get_mock_prediction(f'{key}_proba', features), 1)
+
+        # Inclure explicitement le groupe NOVA dans la sortie pour une source de vérité unique
+        try:
+            predictions['nova_group'] = int(max(1, min(4, features.get('nova_group', 1))))
+        except Exception:
+            predictions['nova_group'] = 1
                 
         print(json.dumps({"success": True, "predictions": predictions}))
         

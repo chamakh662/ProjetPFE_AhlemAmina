@@ -31,6 +31,16 @@ const produitSchema = new mongoose.Schema({
     risque: {
         type: String
     },
+    nova_group: {
+        type: Number,
+        min: 1,
+        max: 4,
+        default: 1
+    },
+    ai_predictions: {
+        type: Object,
+        default: {}
+    },
 
     // ✅ NOUVEAU : Localisation du point de vente principal
     localisation: {

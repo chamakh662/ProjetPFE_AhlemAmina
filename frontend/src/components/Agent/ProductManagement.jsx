@@ -1,5 +1,6 @@
 // src/components/Agent/ProductManagement.jsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AddProductTab from '../Shared/AddProductTab';
 
@@ -102,8 +103,9 @@ async function fetchJsonWithTimeout(url, options = {}) {
     }
 }
 
-const ProductManagement = () => {
+const ProductManagement = ({ onSelectProduct }) => {
     const { user } = useAuth();
+    const navigate = useNavigate();
 
     const [products, setProducts] = useState([]);
     const [pendingProducts, setPendingProducts] = useState([]);
@@ -305,8 +307,13 @@ const ProductManagement = () => {
                                 <ProductCard
                                     key={p._id}
                                     product={p}
-                                    onAccept={acceptProduct}
-                                    onRefuse={refuseProduct}
+                                    pending
+                                    onClickCard={() => {
+                                        if (typeof onSelectProduct === 'function') {
+                                            return onSelectProduct(p._id);
+                                        }
+                                        navigate('/dashboard/AgentDashboard?tab=aiAnalysis');
+                                    }}
                                     S={S}
                                 />
                             ))}

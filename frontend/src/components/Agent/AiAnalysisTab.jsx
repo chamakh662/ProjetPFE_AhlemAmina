@@ -291,8 +291,8 @@ const QueueRow = ({ r, onCorrect, onValidate, onReject, busyId }) => {
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', borderBottom: '1px solid #e2e8f0' }}>
-            <div className="aiTableRow" style={{ borderBottom: 'none' }}>
+        <div className="aiQueueCard">
+            <div className="aiQueueCardRow">
                 <div style={{ minWidth: 0 }}>
                     <div className="aiProductName">{r.name}</div>
                     <div className="aiProductMeta">
@@ -305,7 +305,7 @@ const QueueRow = ({ r, onCorrect, onValidate, onReject, busyId }) => {
                             r.category === 'Moyen' ? 'amber' :
                                 r.category === 'Faible' ? 'green' : 'slate'
                     }>
-                        {r.category}
+                        {r.category || 'N/A'}
                     </Pill>
                 </div>
                 <div>
@@ -313,7 +313,7 @@ const QueueRow = ({ r, onCorrect, onValidate, onReject, busyId }) => {
                         <div className="aiConfBar">
                             <div className="aiConfFill" style={{ width: `${r.confidence}%` }} />
                         </div>
-                        <span className="aiConfPct">{r.confidence}%</span>
+                        <span className="aiConfPct">{r.confidence ?? 0}%</span>
                     </div>
                 </div>
                 <div className="aiRowActions" style={{ gap: '6px' }}>
@@ -360,8 +360,8 @@ const QueueRow = ({ r, onCorrect, onValidate, onReject, busyId }) => {
 
 const LowConfidenceQueue = ({ rows, onCorrect, onValidate, onReject, busyId }) => (
     <Section
-        title={"Produits en attente & Validation IA"}
-        subtitle="Produits soumis par les fournisseurs (en attente) ou approuvés avec un score bio faible."
+        title="Centre de validation IA"
+        subtitle="Liste des produits à surveiller et à valider : validation centralisée, scoring prédit et actions rapides."
         icon={AlertOctagon}
         right={<Pill tone="red">{rows.length} produit(s)</Pill>}
     >
@@ -578,6 +578,14 @@ const AiAnalysisTab = () => {
     const onValidate = async (row) => {
         setBusyId(row.id);
         try {
+            const scoreBio = Math.max(
+                0,
+                Math.min(
+                    100,
+                    Math.round(Number(row.scoreBio ?? row.bioscore ?? row.predictions?.bioscore ?? 72))
+                )
+            );
+
             if (row.productStatus === 'pending') {
                 await apiFetch(`${API}/produits/${row.id}/approve`, {
                     method: 'PUT',
@@ -585,6 +593,7 @@ const AiAnalysisTab = () => {
                     body: JSON.stringify({
                         validatedBy: user?.id || user?._id,
                         agentName: `${user?.prenom || ''} ${user?.nom || ''}`.trim() || 'Agent',
+                        scoreBio,
                     }),
                 });
             } else {
@@ -592,7 +601,7 @@ const AiAnalysisTab = () => {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        scoreBio: Math.max(72, Math.round(Number(row.scoreBio || 0))),
+                        scoreBio: Math.max(72, scoreBio),
                     }),
                 });
             }

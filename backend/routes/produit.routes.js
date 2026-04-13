@@ -64,6 +64,7 @@ router.put('/:id/approve', produitController.approveProduit);
 router.put('/:id/reject', produitController.rejectProduit);
 router.get('/', produitController.getAllProduits);
 router.get('/search', produitController.searchProduitsNLP);
+router.post('/scan', produitController.scanProduitByBarcode);
 router.get('/:id', produitController.getProduitById);
 router.put('/:id', processImage, produitController.updateProduit);
 router.delete('/:id', produitController.deleteProduit);

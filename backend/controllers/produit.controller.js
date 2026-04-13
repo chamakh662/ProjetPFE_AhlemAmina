@@ -127,6 +127,84 @@ const normalizeLocalisation = (body) => {
     };
 };
 
+const PYTHON_BIN = process.env.PYTHON_BIN || 'python';
+
+const runPythonPredictor = (payload) => {
+    return new Promise((resolve, reject) => {
+        const scriptPath = path.join(__dirname, '..', 'predictor.py');
+        const pythonProcess = spawn(PYTHON_BIN, [scriptPath]);
+
+        let stdout = '';
+        let stderr = '';
+
+        pythonProcess.stdout.on('data', (data) => {
+            stdout += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+            stderr += data.toString();
+        });
+
+        pythonProcess.on('close', (code) => {
+            if (code !== 0 && !stdout) {
+                return reject(new Error(`Erreur du script Python : ${stderr.trim()}`));
+            }
+            try {
+                const jsonStart = stdout.indexOf('{');
+                const clean = jsonStart !== -1 ? stdout.slice(jsonStart) : stdout;
+                const result = JSON.parse(clean.trim());
+
+                if (result.error) {
+                    return reject(new Error(result.error));
+                }
+
+                if (!result.success || !result.predictions) {
+                    return reject(new Error('Réponse invalide du script Python')); 
+                }
+
+                resolve(result);
+            } catch (err) {
+                reject(new Error(`Impossible de parser la sortie Python : ${err.message}`));
+            }
+        });
+
+        pythonProcess.on('error', (err) => {
+            reject(err);
+        });
+
+        pythonProcess.stdin.write(JSON.stringify(payload));
+        pythonProcess.stdin.end();
+    });
+};
+
+const buildPredictorPayloadFromProduct = (produit) => {
+    const ingredients = Array.isArray(produit.ingredients) ? produit.ingredients : [];
+    const ingredientNames = ingredients.map((ing) => {
+        return String(ing?.nom || ing?.name || '').trim().toLowerCase();
+    }).filter(Boolean);
+
+    const nbIngredients = ingredientNames.length;
+    const eNumbers = ingredientNames.filter((nom) => nom.match(/(E\d{3}|conservateur|émulsifiant)/i)).length;
+    const containsPreservatives = ingredientNames.some((nom) => nom.includes('conserv')) ? 1 : 0;
+    const containsArtificialColors = ingredientNames.some((nom) => nom.includes('coloran') || nom.includes('colorant')) ? 1 : 0;
+    const containsFlavouring = ingredientNames.some((nom) => nom.includes('arôm') || nom.includes('arome') || nom.includes('arôme')) ? 1 : 0;
+
+    const estimatedNova = produit.nova_group || produit.nova || (nbIngredients > 5 || eNumbers > 0 ? 4 : nbIngredients > 2 ? 3 : 1);
+    const estimatedNutri = produit.nutriscore || produit.nutri_score || produit.nutriscore_num || (nbIngredients * 3 + eNumbers * 5);
+
+    return {
+        nb_ingredients: nbIngredients,
+        ingredients_text: produit.description || produit.nom || produit.name || '',
+        contains_preservatives: containsPreservatives,
+        contains_artificial_colors: containsArtificialColors,
+        contains_flavouring: containsFlavouring,
+        nova_group: estimatedNova,
+        nutriscore_num: estimatedNutri,
+        nb_e_numbers: produit.nb_e_numbers || eNumbers,
+        ingredients_length: nbIngredients,
+    };
+};
+
 // ─── Ajouter produit (par agent directement) ─────────────────────────────────
 exports.createProduit = async (req, res) => {
     try {
@@ -409,6 +487,54 @@ exports.deleteProduit = async (req, res) => {
 
 // ─── Recherche NLP Intelligente ───────────────────────────────────────────────
 const { spawn } = require('child_process');
+
+exports.scanProduitByBarcode = async (req, res) => {
+    try {
+        const code = normalizeCodeBarre(req.body) || String(req.body.code || req.query.code || req.query.code_barre || req.query.codeBarres || '').trim();
+        if (!code) {
+            return res.status(400).json({ message: 'Code-barres requis.' });
+        }
+
+        const produit = await Produit.findOne({
+            $or: [
+                { code_barre: code },
+                { codeBarres: code }
+            ]
+        })
+            .populate('ingredients')
+            .populate('pointsDeVente')
+            .populate('createdBy', 'nom prenom email')
+            .populate('validatedBy', 'nom prenom email');
+
+        if (!produit) {
+            return res.status(404).json({ message: 'Produit non trouvé.' });
+        }
+
+        const payload = buildPredictorPayloadFromProduct(produit);
+        const result = await runPythonPredictor(payload);
+        const predictions = result.predictions || {};
+
+        produit.ai_predictions = predictions;
+        produit.nova_group = Number(predictions.nova_group || payload.nova_group || produit.nova_group || produit.nova || 1);
+        if (predictions.bioscore !== undefined) produit.scoreBio = predictions.bioscore;
+        if (predictions.cardio_risk !== undefined) produit.cardio_risk = predictions.cardio_risk;
+        if (predictions.diabetes_risk !== undefined) produit.diabetes_risk = predictions.diabetes_risk;
+        if (predictions.cardio_risk_proba !== undefined) produit.cardio_risk_proba = predictions.cardio_risk_proba;
+        if (predictions.diabetes_risk_proba !== undefined) produit.diabetes_risk_proba = predictions.diabetes_risk_proba;
+        await produit.save();
+
+        const updatedProduit = await Produit.findById(produit._id)
+            .populate('ingredients')
+            .populate('pointsDeVente')
+            .populate('createdBy', 'nom prenom email')
+            .populate('validatedBy', 'nom prenom email');
+
+        res.status(200).json(updatedProduit);
+    } catch (error) {
+        console.error('Erreur scanProduitByBarcode:', error);
+        res.status(500).json({ message: error.message || 'Erreur serveur lors du scan du produit.' });
+    }
+};
 
 exports.searchProduitsNLP = async (req, res) => {
     try {

@@ -43,6 +43,7 @@ const Home = () => {
   // States pour la recherche Hero
   const [searchMode, setSearchMode] = useState('produit');
   const [ingredientResult, setIngredientResult] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // ── Hooks consommateur ─────────────────────────────────────────────────────
@@ -111,6 +112,7 @@ const Home = () => {
       setDisplayProducts(allProducts);
       setIngredientResult(null);
     }
+    setSelectedProduct(null);
   }, [searchQuery, allProducts]);
 
   // ── Recherche ──────────────────────────────────────────────────────────────
@@ -210,65 +212,113 @@ const Home = () => {
     setIsAnalyzing(false);
   };
 
+  const buildAnalysisPayload = (produit) => {
+    const ingredients = produit?.ingredients || [];
+    const ingredientsText = produit?.description || produit?.nom || produit?.name || '';
+    const ingredientNames = ingredients.map((ing) => (ing.nom || ing.name || '').toLowerCase());
+    const eNumbers = ingredientNames.filter((nom) => nom.match(/(E\d{3}|conservateur|émulsifiant)/i)).length;
+    const containsPreservatives = ingredientNames.some((nom) => nom.includes('conserv'));
+    const containsArtificialColors = ingredientNames.some((nom) => nom.includes('coloran') || nom.includes('colorant'));
+    const containsFlavouring = ingredientNames.some((nom) => nom.includes('arôm') || nom.includes('arome') || nom.includes('arôme'));
+    const nbIngredients = ingredients.length;
+    const estimatedNova = produit?.nova_group || produit?.nova || (nbIngredients > 5 || eNumbers > 0 ? 4 : nbIngredients > 2 ? 3 : 1);
+    const estimatedNutri = produit?.nutriscore || produit?.nutri_score || produit?.nutriscore_num || (nbIngredients * 3 + eNumbers * 5);
+
+    return {
+      nb_ingredients: nbIngredients,
+      ingredients_text: ingredientsText,
+      contains_preservatives: containsPreservatives ? 1 : 0,
+      contains_artificial_colors: containsArtificialColors ? 1 : 0,
+      contains_flavouring: containsFlavouring ? 1 : 0,
+      nova_group: estimatedNova,
+      nutriscore_num: estimatedNutri,
+      nb_e_numbers: produit?.nb_e_numbers || eNumbers,
+      ingredients_length: nbIngredients,
+    };
+  };
+
+  const fetchAIForProduct = async (produit) => {
+    if (!produit) return produit;
+    if (produit.ai_predictions && Object.keys(produit.ai_predictions).length > 0) {
+      return produit;
+    }
+
+    try {
+      const response = await fetch('http://localhost:5000/api/analyses/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildAnalysisPayload(produit)),
+      });
+      const data = await response.json();
+      return {
+        ...produit,
+        ai_predictions: data.predictions || {},
+      };
+    } catch (err) {
+      console.error('Erreur lors de la récupération IA pour le produit :', produit?.nom || produit?.name, err);
+      return produit;
+    }
+  };
+
+  const handleSelectProduct = async (produit) => {
+    setIsAnalyzing(true);
+    const enriched = await fetchAIForProduct(produit);
+    setSelectedProduct(enriched);
+    setIsAnalyzing(false);
+  };
+
   // ── Recherche par Scan ──────────────────────────────────────────────────────
   const handleBarcodeScan = async () => {
     setScanError(false);
     const query = barcode.trim();
     if (!query) return;
 
-    const lowerQuery = query.toLowerCase();
-    
-    // Recherche par code-barres uniquement (exclusivement pour le scan)
-    const found = allProducts.find((p) => {
-      if (p.code_barre === query || p.codeBarres === query) return true;
-      return false;
-    });
+    setIsAnalyzing(true);
 
-    if (found) {
-      try {
-        // Calcul intelligent de variables pour donner des prédictions IA réalistes selon la base locale
-        const nbIngs = found.ingredients ? found.ingredients.length : 0;
-        const eNumbers = found.ingredients ? found.ingredients.filter(i => i.nom && i.nom.match(/(E\d{3}|Conservateur|Émulsifiant)/i)).length : 0;
-        // Nova estimé (1=brut, 4=ultra transformé) basé sur le nb d'additifs et d'ingrédients
-        const estimatedNova = (nbIngs > 5 || eNumbers > 0) ? 4 : (nbIngs > 2 ? 3 : 1);
-        // Nutriscore (Nutriscore Nummers: de -15 très sain à +40 très mauvais) extrapolé via scoreBio
-        const estimatedNutri = found.scoreBio ? (100 - found.scoreBio) / 2 - 10 : (nbIngs * 3 + eNumbers * 5);
+    try {
+      const response = await fetch('http://localhost:5000/api/produits/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code_barre: query })
+      });
 
-        const response = await fetch('http://localhost:5000/api/analyses/predict', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-             nb_ingredients: nbIngs,
-             ingredients_text: found.description || found.nom || '',
-             contains_preservatives: found.ingredients?.some(i => i.nom && i.nom.toLowerCase().includes('conserv')) ? 1 : 0,
-             contains_artificial_colors: found.ingredients?.some(i => i.nom && i.nom.toLowerCase().includes('coloran')) ? 1 : 0,
-             contains_flavouring: found.ingredients?.some(i => i.nom && i.nom.toLowerCase().includes('arôm')) ? 1 : 0,
-             nova_group: found.nova_group || estimatedNova,
-             nutriscore_num: found.nutriscore || estimatedNutri,
-             nb_e_numbers: found.nb_e_numbers || eNumbers,
-             ingredients_length: nbIngs
-          })
-        });
-        
-        const data = await response.json();
-        
-        const productWithAI = {
-            ...found,
-            ai_predictions: data.predictions || {}
-        };
-        
-        setScannedProduct(productWithAI);
-        
-        if (isConsommateur) {
-          addToHistory(query);
+      if (!response.ok) {
+        if (response.status === 404) {
+          setScanError(true);
+          setScannedProduct(null);
+          return;
         }
-      } catch (err) {
-        console.error("Erreur lors de l'appel à l'IA :", err);
-        setScannedProduct(found); // Fallback sans IA
+        throw new Error(`Échec du scan : ${response.status}`);
       }
-    } else {
-      setScannedProduct(null);
+
+      const product = await response.json();
+      setScannedProduct(product);
+
+      setAllProducts((prevProducts) => {
+        const existingIndex = prevProducts.findIndex((p) =>
+          (p._id && product._id && p._id === product._id) ||
+          p.code_barre === product.code_barre ||
+          p.codeBarres === product.codeBarres
+        );
+
+        if (existingIndex !== -1) {
+          const copy = [...prevProducts];
+          copy[existingIndex] = product;
+          return copy;
+        }
+
+        return prevProducts;
+      });
+
+      if (isConsommateur) {
+        addToHistory(query);
+      }
+    } catch (err) {
+      console.error('Erreur lors de l’appel de scan produit :', err);
       setScanError(true);
+      setScannedProduct(null);
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -326,7 +376,24 @@ const Home = () => {
          </div>
       )}
 
-      {!isAnalyzing && searchMode === 'ingredient' && ingredientResult ? (
+      {!isAnalyzing && selectedProduct ? (
+        <section id="products-section" style={{ backgroundColor: '#f8fafc', padding: '4rem 1.5rem', display: 'flex', justifyContent: 'center' }}>
+          <div style={{ maxWidth: '1000px', width: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '2rem', fontWeight: '800', color: '#0f172a' }}>
+                Résultat de l'analyse IA
+              </h2>
+              <button
+                style={{ padding: '0.75rem 1.2rem', borderRadius: '0.75rem', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', cursor: 'pointer', color: '#334155' }}
+                onClick={() => setSelectedProduct(null)}
+              >
+                Retour aux résultats
+              </button>
+            </div>
+            <ResultatAnalyse product={selectedProduct} />
+          </div>
+        </section>
+      ) : !isAnalyzing && searchMode === 'ingredient' && ingredientResult ? (
         <section id="products-section" style={{ backgroundColor: '#f8fafc', padding: '4rem 1.5rem', display: 'flex', justifyContent: 'center' }}>
             <div style={{ maxWidth: '1000px', width: '100%' }}>
                 <h2 style={{ fontSize: '2rem', fontWeight: '800', color: '#0f172a', marginBottom: '2rem', textAlign: 'center' }}>
@@ -341,6 +408,7 @@ const Home = () => {
             user={user}
             handleAddFavorite={addFavorite}
             handleOpenComments={handleOpenComments}
+            onClickCard={handleSelectProduct}
             isFavorite={isFavorite}
             getAverageRating={getAverageRating}
             getProductComments={getProductComments}

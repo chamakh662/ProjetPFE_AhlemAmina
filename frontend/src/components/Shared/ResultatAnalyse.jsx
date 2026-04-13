@@ -17,6 +17,8 @@ const ResultatAnalyse = ({ product }) => {
     const origin = product.origine || 'Inconnue';
     const marque = product.marque || product.brand || 'Non spécifiée';
     const barcode = product.code_barre || product.codeBarres;
+    const novaGroup = product.ai_predictions?.nova_group || product.nova_group || 1;
+    const hasIASection = (product.ai_predictions && Object.keys(product.ai_predictions).length > 0) || product.nova_group !== undefined;
 
     return (
         <div style={{ ...styles.analysisReport, animation: 'fadeInUp 0.5s ease forwards' }}>
@@ -73,7 +75,16 @@ const ResultatAnalyse = ({ product }) => {
                             {product.pointsDeVente.map((pv, idx) => (
                                 <div key={pv._id || idx} style={styles.pointVenteCard}>
                                     <strong style={styles.pointVenteName}>{pv.nom || 'Magasin'}</strong>
-                                    {pv.adresse && <span style={styles.pointVenteAddress}>📍 {pv.adresse}</span>}
+                                    {pv.adresse && (
+                                        <a
+                                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pv.adresse)}`}
+                                            target="_blank"
+                                            rel="noreferrer noopener"
+                                            style={styles.pointVenteAddress}
+                                        >
+                                            📍 {pv.adresse}
+                                        </a>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -81,17 +92,24 @@ const ResultatAnalyse = ({ product }) => {
                 )}
 
                 {/* Section Prédictions IA */}
-                {product.ai_predictions && Object.keys(product.ai_predictions).length > 0 && (
+                {hasIASection && (
                     <div style={styles.aiSection}>
                         <h4 style={styles.sectionHeading}>🤖 Analyse IA & Santé</h4>
+                        <div style={styles.aiSectionHeader}>
+                            <span style={styles.novaBadge}>
+                                NOVA {novaGroup}
+                                <span style={styles.novaDescription}>
+                                    {getNoveDescription(novaGroup)}
+                                </span>
+                            </span>
+                        </div>
                         <div style={styles.aiCardsContainer}>
-                            
                             <div style={styles.aiCard}>
                                 <div style={styles.aiCardIcon}>🫀</div>
                                 <div style={styles.aiCardContent}>
                                     <span style={styles.aiCardTitle}>Risque Cardio</span>
                                     <span style={{...styles.aiCardValue, color: getRiskColor(product.ai_predictions.cardio_risk)}}>
-                                        {product.ai_predictions.cardio_risk}
+                                        {product.ai_predictions.cardio_risk || 'Inconnu'}
                                         {product.ai_predictions.cardio_risk_proba ? ` (${product.ai_predictions.cardio_risk_proba}%)` : ''}
                                     </span>
                                 </div>
@@ -102,7 +120,7 @@ const ResultatAnalyse = ({ product }) => {
                                 <div style={styles.aiCardContent}>
                                     <span style={styles.aiCardTitle}>Risque Diabète</span>
                                     <span style={{...styles.aiCardValue, color: getRiskColor(product.ai_predictions.diabetes_risk)}}>
-                                        {product.ai_predictions.diabetes_risk}
+                                        {product.ai_predictions.diabetes_risk || 'Inconnu'}
                                         {product.ai_predictions.diabetes_risk_proba ? ` (${product.ai_predictions.diabetes_risk_proba}%)` : ''}
                                     </span>
                                 </div>
@@ -113,7 +131,7 @@ const ResultatAnalyse = ({ product }) => {
                                 <div style={styles.aiCardContent}>
                                     <span style={styles.aiCardTitle}>Exp. Additifs</span>
                                     <span style={{...styles.aiCardValue, color: getRiskColor(product.ai_predictions.additive_exposure)}}>
-                                        {product.ai_predictions.additive_exposure}
+                                        {product.ai_predictions.additive_exposure || 'Inconnu'}
                                     </span>
                                 </div>
                             </div>
@@ -121,13 +139,12 @@ const ResultatAnalyse = ({ product }) => {
                             <div style={styles.aiCard}>
                                 <div style={styles.aiCardIcon}>🍔</div>
                                 <div style={styles.aiCardContent}>
-                                    <span style={styles.aiCardTitle}>Ultra-Tranformé</span>
+                                    <span style={styles.aiCardTitle}>Ultra-transformé</span>
                                     <span style={{...styles.aiCardValue, color: product.ai_predictions.ultra_transforme ? '#ef4444' : '#10b981'}}>
                                         {product.ai_predictions.ultra_transforme ? 'Oui' : 'Non'}
                                     </span>
                                 </div>
                             </div>
-
                         </div>
                     </div>
                 )}
@@ -150,6 +167,21 @@ const getRiskColor = (risk) => {
     if (lowerRisk === 'medium' || lowerRisk === 'moyen') return '#f59e0b'; // Yellow
     if (lowerRisk === 'high' || lowerRisk === 'élevé' || lowerRisk === '1') return '#ef4444'; // Red
     return '#64748b'; // Gray fallback
+};
+
+const getNoveDescription = (novaGroup) => {
+    switch (Number(novaGroup)) {
+        case 1:
+            return 'Aliments non transformés';
+        case 2:
+            return 'Ingrédients culinaires transformés';
+        case 3:
+            return 'Produits transformés à consommer occasionnellement';
+        case 4:
+            return 'Produits ultra-transformés à limiter';
+        default:
+            return 'Niveau NOVA inconnu';
+    }
 };
 
 const styles = {
@@ -196,6 +228,9 @@ const styles = {
     pointVenteAddress: { fontSize: '0.75rem', color: '#64748b' },
 
     aiSection: { marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px dashed #cbd5e1' },
+    aiSectionHeader: { display: 'flex', justifyContent: 'flex-start', marginBottom: '1rem' },
+    novaBadge: { display: 'inline-flex', flexDirection: 'column', gap: '0.2rem', padding: '0.75rem 1rem', borderRadius: '1rem', backgroundColor: '#eef2ff', border: '1px solid #c7d2fe', color: '#4338ca', fontWeight: '700', maxWidth: 'fit-content' },
+    novaDescription: { fontSize: '0.8rem', color: '#3730a3', fontWeight: '500', marginTop: '0.25rem' },
     aiCardsContainer: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1rem', marginTop: '1rem' },
     aiCard: { display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', backgroundColor: '#f8fafc', borderRadius: '1rem', border: '1px solid #e2e8f0', transition: 'transform 0.2s ease', cursor: 'default' },
     aiCardIcon: { fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', backgroundColor: '#ffffff', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' },

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FiMenu } from 'react-icons/fi';
 import './Dashboard.css';
 
@@ -14,8 +14,21 @@ import ProductManagement from '../components/Agent/ProductManagement';
 const AgentDashboard = () => {
   const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const requestedTab = searchParams.get('tab');
+    if (requestedTab && requestedTab !== activeTab) {
+      setActiveTab(requestedTab);
+    }
+  }, [searchParams, activeTab]);
+
+  const switchToAiAnalysis = () => {
+    setActiveTab('aiAnalysis');
+    setSearchParams({ tab: 'aiAnalysis' }, { replace: true });
+  };
 
   const handleLogout = () => {
     logout();
@@ -26,7 +39,7 @@ const AgentDashboard = () => {
     switch (activeTab) {
       case 'overview': return <OverviewTab />;
       case 'messages': return <Messagerie user={user} role="agent" />;
-      case 'products': return <ProductManagement />;
+      case 'products': return <ProductManagement onSelectProduct={switchToAiAnalysis} />;
       case 'aiAnalysis': return <AiAnalysisTab />;
       case 'profile': return <ProfileTab user={user} updateUser={updateUser} />;
       default: return <OverviewTab />;

@@ -1,5 +1,5 @@
 // src/components/Agent/ProductCard.jsx
-import React from 'react';
+import React, { useState } from 'react';
 
 const ProductCard = ({
     product,
@@ -9,9 +9,12 @@ const ProductCard = ({
     onDelete,
     onAccept,
     onRefuse,
+    onClickCard,
+    pending = false,
     S
 }) => {
-    const isPending = !!onAccept && !!onRefuse;
+    const [hovered, setHovered] = useState(false);
+    const isPending = pending || (!!onAccept && !!onRefuse);
 
     // Fonction MapsLink intégrée
     const MapsLink = ({ localisation }) => {
@@ -25,10 +28,21 @@ const ProductCard = ({
     };
 
     return (
-        <div style={{
-            ...S.card,
-            ...(isPending && { borderLeft: '4px solid #FF9800' })
-        }}>
+        <div
+            style={{
+                ...S.card,
+                ...(isPending && { borderLeft: '4px solid #FF9800' }),
+                ...(onClickCard ? {
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                    transform: hovered ? 'translateY(-2px)' : 'none',
+                    boxShadow: hovered ? '0 18px 32px rgba(15,23,42,0.12)' : S.card.boxShadow,
+                } : {}),
+            }}
+            onClick={onClickCard ? () => onClickCard(product) : undefined}
+            onMouseEnter={() => onClickCard && setHovered(true)}
+            onMouseLeave={() => onClickCard && setHovered(false)}
+        >
             {isEditing ? (
                 children
             ) : (
@@ -77,12 +91,7 @@ const ProductCard = ({
                     </div>
 
                     <div style={S.cardActions}>
-                        {isPending ? (
-                            <>
-                                <button onClick={() => onAccept(product)} style={S.btnSuccess}>✅ Accepter</button>
-                                <button onClick={() => onRefuse(product)} style={S.btnDanger}>❌ Refuser</button>
-                            </>
-                        ) : (
+                        {isPending ? null : (
                             <>
                                 <button onClick={onEdit} style={S.btnEdit}>✏️ Modifier</button>
                                 <button onClick={onDelete} style={S.btnDanger}>🗑️ Supprimer</button>
