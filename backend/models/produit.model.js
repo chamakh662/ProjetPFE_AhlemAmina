@@ -8,6 +8,9 @@ const produitSchema = new mongoose.Schema({
     marque: {
         type: String
     },
+    description: {
+        type: String
+    },
     image: {
         type: String
     },

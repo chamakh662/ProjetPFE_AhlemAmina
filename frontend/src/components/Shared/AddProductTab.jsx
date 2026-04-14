@@ -217,12 +217,13 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess, productToEdit = 
 
     // ─── State ────────────────────────────────────────────────────────────────
     const [productForm, setProductForm] = useState({
-        nom: productToEdit?.nom || '', 
-        marque: productToEdit?.marque || '', 
-        code_barre: productToEdit?.code_barre || '', 
+        nom: productToEdit?.nom || '',
+        marque: productToEdit?.marque || '',
+        description: productToEdit?.description || '',
+        code_barre: productToEdit?.code_barre || '',
         origine: productToEdit?.origine || '',
-        ingredients: productToEdit?.ingredients ? productToEdit.ingredients.map(i => i.nom).join(', ') : '', 
-        image: productToEdit?.image || '', 
+        ingredients: productToEdit?.ingredients ? productToEdit.ingredients.map(i => i.nom).join(', ') : '',
+        image: productToEdit?.image || '',
         pointsDeVente: productToEdit?.pointsDeVente ? productToEdit.pointsDeVente.map(p => p._id) : []
     });
 
@@ -235,6 +236,7 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess, productToEdit = 
     const canSubmit =
         productForm.nom?.trim() &&
         productForm.marque?.trim() &&
+        productForm.description?.trim() &&
         productForm.origine?.trim() &&
         productForm.ingredients?.trim() &&
         productForm.image &&
@@ -313,7 +315,7 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess, productToEdit = 
                 createdBy: user.id,
                 status: cfg.status,
             };
-            
+
             // Éviter l'erreur d'index "unique sparse" vide sur MongoDB
             if (!hasBarcode || !payload.code_barre.trim()) {
                 delete payload.code_barre;
@@ -328,7 +330,7 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess, productToEdit = 
             if (!res.ok) throw new Error(data.message || 'Erreur lors de la soumission');
 
             // Reset formulaire
-            setProductForm({ nom: '', marque: '', code_barre: '', origine: '', ingredients: '', image: '', pointsDeVente: [] });
+            setProductForm({ nom: '', marque: '', description: '', code_barre: '', origine: '', ingredients: '', image: '', pointsDeVente: [] });
             setPointsDeVente([]);
             setHasBarcode(false);
 
@@ -374,15 +376,22 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess, productToEdit = 
                     style={styles.textarea} className="add-product-input"
                 />
 
+                <textarea
+                    placeholder="Description*"
+                    value={productForm.description}
+                    onChange={e => setProductForm({ ...productForm, description: e.target.value })}
+                    style={styles.textarea} className="add-product-input"
+                />
+
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 2px' }}>
-                    <input 
-                        type="checkbox" 
+                    <input
+                        type="checkbox"
                         id="hasBarcodeCheck"
-                        checked={hasBarcode} 
+                        checked={hasBarcode}
                         onChange={(e) => {
                             setHasBarcode(e.target.checked);
-                            if (!e.target.checked) setProductForm({ ...productForm, code_barre: '' }); 
-                        }} 
+                            if (!e.target.checked) setProductForm({ ...productForm, code_barre: '' });
+                        }}
                         style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#2563eb' }}
                     />
                     <label htmlFor="hasBarcodeCheck" style={{ fontSize: '15px', color: '#1e293b', cursor: 'pointer', fontWeight: '500', userSelect: 'none' }}>
@@ -419,7 +428,7 @@ const AddProductTab = ({ user, role = 'fournisseur', onSuccess, productToEdit = 
                         try { setProductForm({ ...productForm, image: await readFileAsDataUrl(file) }); }
                         catch { alert("Impossible de lire l'image"); }
                     }}
-                    style={{...styles.input, backgroundColor: 'transparent', border: 'none', padding: '0'}} 
+                    style={{ ...styles.input, backgroundColor: 'transparent', border: 'none', padding: '0' }}
                     className="add-product-input"
                 />
                 {productForm.image && (
