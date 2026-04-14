@@ -17,18 +17,43 @@ const Chatbot = ({ user, addToHistory }) => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isTyping]);
 
-    // Remplacez cette fonction par un appel à votre API IA backend
     const botReply = async (userMessage) => {
         setIsTyping(true);
-        await new Promise((r) => setTimeout(r, 800));
-        setIsTyping(false);
-        setMessages((prev) => [
-            ...prev,
-            {
-                from: 'bot',
-                text: `Je cherche des informations sur : "${userMessage}". (Connectez cette fonction à votre API IA)`,
-            },
-        ]);
+        try {
+            // On envoie un historique léger pour le contexte (les 6 derniers messages par ex.)
+            const history = messages.slice(-6);
+            
+            const response = await fetch('http://localhost:5000/api/chatbot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: userMessage, history })
+            });
+
+            if (!response.ok) {
+                throw new Error("Erreur de réponse de l'assistant API");
+            }
+
+            const data = await response.json();
+
+            setMessages((prev) => [
+                ...prev,
+                {
+                    from: 'bot',
+                    text: data.reply,
+                },
+            ]);
+        } catch (error) {
+            console.error("Erreur Chatbot:", error);
+            setMessages((prev) => [
+                ...prev,
+                {
+                    from: 'bot',
+                    text: "Désolé, je rencontre des difficultés techniques pour vous répondre.",
+                },
+            ]);
+        } finally {
+            setIsTyping(false);
+        }
     };
 
     const handleSend = () => {

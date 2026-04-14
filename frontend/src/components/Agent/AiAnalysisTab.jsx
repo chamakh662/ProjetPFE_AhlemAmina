@@ -26,6 +26,7 @@ import {
 } from 'recharts';
 import { useAuth } from '../../context/AuthContext';
 import { apiFetch, AuthExpiredError } from '../../utils/apiFetch';
+import IngredientAnalysisCard from '../../components/Shared/IngredientAnalysisCard';
 import './AiAnalysisTab.css';
 
 const API = 'http://localhost:5000/api';
@@ -156,6 +157,119 @@ const SemiGauge = ({ value = 0, label = 'Accuracy' }) => {
 };
 
 // ─── SANDBOX ─────────────────────────────────────────────────────────────────
+
+const IngredientLLMAnalyzer = ({
+  ingredientQuery,
+  setIngredientQuery,
+  llmResult,
+  setLlmResult,
+  isLlmAnalyzing,
+  setIsLlmAnalyzing,
+  llmError,
+  setLlmError
+}) => {
+  const [waitMsg, setWaitMsg] = useState('');
+
+  useEffect(() => {
+    let timer;
+    if (isLlmAnalyzing) {
+      timer = setTimeout(() => {
+        setWaitMsg("Le modèle Gemini est actuellement très sollicité. Des tentatives automatiques sont en cours, merci de patienter...");
+      }, 3000);
+    } else {
+      setWaitMsg('');
+    }
+    return () => clearTimeout(timer);
+  }, [isLlmAnalyzing]);
+
+  const onAnalyzeIngredientLLM = async () => {
+    if (!ingredientQuery.trim()) return;
+    setIsLlmAnalyzing(true);
+    setLlmResult(null);
+    setLlmError('');
+    try {
+      const res = await apiFetch(`${API}/ingredients/analyze-llm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nom: ingredientQuery }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || `Erreur ${res.status}`);
+      // On s'assure d'extraire l'objet d'analyse (le backend renvoie { success: true, analysis: {...} })
+      setLlmResult(data.analysis || data);
+    } catch (err) {
+      setLlmError(err.message || 'Échec analyse LLM');
+    } finally {
+ setIsLlmAnalyzing(false);
+    }
+};
+
+return (
+    <Section
+title="Analyse LLM Ingrédient (Gemini)"
+subtitle="Nom d'un ingrédient → analyse dynamique structurée (origine, NOVA, danger, recos ciblées)."
+icon={Sparkles}
+right={
+        <button 
+        type="button" 
+        onClick={onAnalyzeIngredientLLM}
+        disabled={isLlmAnalyzing || !ingredientQuery.trim()}
+        className="aiBtn aiBtn--primary"
+        >
+          <Sparkles size={16} />
+          {isLlmAnalyzing ? 'Analyse LLM…' : 'Analyser avec Gemini'}
+        </button>
+      }
+    >
+      {llmError && (
+        <div className="aiError" style={{ marginBottom: 12 }}>
+          <span>Erreur LLM : {llmError}</span>
+          <button type="button" onClick={() => setLlmError('')}>Fermer</button>
+        </div>
+      )}
+      {waitMsg && !llmError && isLlmAnalyzing && (
+        <div style={{ padding: '10px 14px', backgroundColor: '#fffbeb', color: '#b45309', borderRadius: '6px', marginBottom: '16px', fontSize: '0.9rem', border: '1px solid #fde68a', display: 'flex', alignItems: 'center' }}>
+          <Timer size={16} style={{ marginRight: '8px' }} />
+          {waitMsg}
+        </div>
+      )}
+       <div className="aiGrid2">
+        <div className="aiPanel">
+        <label className="aiLabel" htmlFor="ingredient-llm">Nom ingrédient</label>
+        <input
+            id="ingredient-llm"
+            type="text"
+            value={ingredientQuery}
+            onChange={(e) => setIngredientQuery(e.target.value)}
+            className="aiInput"
+            placeholder="Ex: E621, glutamate monosodique, sucre, huile de palme..."
+        />
+        <div className="aiHint">
+            <Pill tone="purple">LLM Gemini 1.5 Flash</Pill>
+            <span>Retour JSON → cartes visuelles avec tous les champs (origine, dangerosité, NOVA, recos).</span>
+        </div>
+        </div>
+        <div className="aiPanel aiPanel--light">
+        <span className="aiLabel" style={{ marginBottom: 0 }}>Résultat attendu</span>
+        {llmResult ? (
+            <div style={{ marginTop: '12px' }}>
+            <div style={{ marginBottom: '12px', padding: '8px 12px', backgroundColor: '#f0f9ff', borderRadius: '6px', fontSize: '0.85rem' }}>
+                <strong>Qualité globale:</strong> {llmResult.qualite_globale || 'N/A'}
+            </div>
+            {llmResult.ingredients && llmResult.ingredients.map((ing, idx) => (
+                <IngredientAnalysisCard key={idx} ingredient={ing} />
+            ))}
+            </div>
+            ) : (
+            <div style={{ color: '#94a3b8', fontStyle: 'italic' }}>
+            Tapez un ingrédient et cliquez "Analyser avec Gemini"
+            </div>
+        )}
+        </div>
+    </div>
+    </Section>
+);
+};
 
 const Sandbox = () => {
     const [rawIngredients, setRawIngredients] = useState('');
@@ -532,6 +646,10 @@ const AiAnalysisTab = () => {
     const [categories, setCategories] = useState([]);
     const [additives, setAdditives] = useState([]);
     const [severityOverrides, setSeverityOverrides] = useState({});
+    const [ingredientQuery, setIngredientQuery] = useState('');
+    const [llmResult, setLlmResult] = useState(null);
+    const [isLlmAnalyzing, setIsLlmAnalyzing] = useState(false);
+    const [llmError, setLlmError] = useState('');
 
     const loadData = useCallback(async () => {
         setLoading(true);
@@ -666,6 +784,16 @@ const AiAnalysisTab = () => {
                 </div>
             </div>
 
+            <IngredientLLMAnalyzer
+  ingredientQuery={ingredientQuery}
+  setIngredientQuery={setIngredientQuery}
+  llmResult={llmResult}
+  setLlmResult={setLlmResult}
+  isLlmAnalyzing={isLlmAnalyzing}
+  setIsLlmAnalyzing={setIsLlmAnalyzing}
+  llmError={llmError}
+  setLlmError={setLlmError}
+/>
             <Sandbox />
             <LowConfidenceQueue
                 rows={lowConfidenceRows}

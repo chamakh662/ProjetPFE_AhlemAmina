@@ -1,9 +1,9 @@
 import React from 'react';
+import IngredientAnalysisCard from './IngredientAnalysisCard';
 
-const ResultatAnalyse = ({ product }) => {
+const ResultatAnalyse = ({ product, isIngredientSearch = false }) => {
     if (!product) return null;
 
-    // Fonction utilitaire pour résoudre l'URL de l'image
     const getImageUrl = (img) => {
         if (!img) return null;
         if (img.startsWith('data:image')) return img;
@@ -18,33 +18,41 @@ const ResultatAnalyse = ({ product }) => {
     const marque = product.marque || product.brand || 'Non spécifiée';
     const barcode = product.code_barre || product.codeBarres;
     const novaGroup = product.ai_predictions?.nova_group || product.nova_group || 1;
-    const hasIASection = (product.ai_predictions && Object.keys(product.ai_predictions).length > 0) || product.nova_group !== undefined;
+    const hasLLM = !!(product.ai_predictions?.llm?.ingredients?.length > 0);
+    const hasIASection = hasLLM ||
+        !!(product.ai_predictions?.cardio_risk) ||
+        !!(product.ai_predictions?.diabetes_risk) ||
+        product.nova_group !== undefined;
 
     return (
         <div style={{ ...styles.analysisReport, animation: 'fadeInUp 0.5s ease forwards' }}>
             {/* Section Visuelle */}
-            <div style={styles.reportImageCol}>
-                {imageUrl ? (
-                    <img src={imageUrl} alt={product.nom} style={styles.productImage} onError={(e) => { e.target.src = 'https://via.placeholder.com/300?text=Pas+d%27image'; }} />
-                ) : (
-                    <div style={styles.noImagePlaceholder}>📷<br />Aucune image</div>
-                )}
+            {!isIngredientSearch && (
+                <div style={styles.reportImageCol}>
+                    {imageUrl ? (
+                        <img src={imageUrl} alt={product.nom} style={styles.productImage} onError={(e) => { e.target.src = 'https://via.placeholder.com/300?text=Pas+d%27image'; }} />
+                    ) : (
+                        <div style={styles.noImagePlaceholder}>📷<br />Aucune image</div>
+                    )}
 
-                <div style={styles.healthScoreCard}>
-                    <div style={styles.healthScoreRing}>
-                        <span style={styles.healthScoreValue}>{product.ai_predictions?.bioscore || product.scoreBio || 0}</span>
-                        <span style={styles.healthScoreLabel}>/100</span>
+                    <div style={styles.healthScoreCard}>
+                        <div style={styles.healthScoreRing}>
+                            <span style={styles.healthScoreValue}>{product.ai_predictions?.bioscore || product.scoreBio || 0}</span>
+                            <span style={styles.healthScoreLabel}>/100</span>
+                        </div>
+                        <span style={styles.healthScoreDesc}>Score Santé / Bio (IA)</span>
                     </div>
-                    <span style={styles.healthScoreDesc}>Score Santé / Bio (IA)</span>
                 </div>
-            </div>
+            )}
 
             {/* Section Infos */}
             <div style={styles.reportInfoCol}>
                 <div style={styles.reportHeader}>
                     <div style={styles.brandTag}>{marque}</div>
                     <h3 style={styles.reportTitle}>{product.nom}</h3>
-                    <p style={styles.reportOrigin}>📍 Origine : <strong>{origin}</strong></p>
+                    {!isIngredientSearch && (
+                        <p style={styles.reportOrigin}>📍 Origine : <strong>{origin}</strong></p>
+                    )}
                     {barcode && (
                         <p style={styles.reportBarcode}>🏷️ Code-barres : <strong>{barcode}</strong></p>
                     )}
@@ -96,61 +104,136 @@ const ResultatAnalyse = ({ product }) => {
                     <div style={styles.aiSection}>
                         <h4 style={styles.sectionHeading}>🤖 Analyse IA & Santé</h4>
                         <div style={styles.aiSectionHeader}>
-                            <span style={styles.novaBadge}>
+                            <span style={{
+                                ...styles.novaBadge,
+                                ...getNovaBadgeStyle(novaGroup)
+                            }}>
                                 NOVA {novaGroup}
                                 <span style={styles.novaDescription}>
                                     {getNoveDescription(novaGroup)}
                                 </span>
                             </span>
                         </div>
-                        {product.ai_predictions && Object.keys(product.ai_predictions).length > 0 && (
-                            <div style={styles.aiCardsContainer}>
+
+                        <div style={styles.aiCardsContainer}>
+                            {isIngredientSearch && (
+                                <div style={styles.aiCard}>
+                                    <div style={styles.aiCardIcon}>🌿</div>
+                                    <div style={styles.aiCardContent}>
+                                        <span style={styles.aiCardTitle}>Score Santé</span>
+                                        <span style={{
+                                            ...styles.aiCardValue,
+                                            color: getProbaColor(100 - (product.ai_predictions?.bioscore || product.scoreBio || 0))
+                                        }}>
+                                            {product.ai_predictions?.bioscore || product.scoreBio || 0}%
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Risque Cardio */}
+                            {!isIngredientSearch && (
                                 <div style={styles.aiCard}>
                                     <div style={styles.aiCardIcon}>🫀</div>
                                     <div style={styles.aiCardContent}>
                                         <span style={styles.aiCardTitle}>Risque Cardio</span>
-                                        <span style={{...styles.aiCardValue, color: getRiskColor(product.ai_predictions.cardio_risk)}}>
-                                            {product.ai_predictions.cardio_risk || 'Inconnu'}
-                                            {product.ai_predictions.cardio_risk_proba ? ` (${product.ai_predictions.cardio_risk_proba}%)` : ''}
+                                        <span style={{ ...styles.aiCardValue, color: getRiskColor(product.ai_predictions?.cardio_risk) }}>
+                                            {product.ai_predictions?.cardio_risk || 'Inconnu'}
+                                            {product.ai_predictions?.cardio_risk_proba != null
+                                                ? ` (${product.ai_predictions.cardio_risk_proba}%)`
+                                                : ''}
                                         </span>
                                     </div>
                                 </div>
-                                
-                                <div style={styles.aiCard}>
-                                    <div style={styles.aiCardIcon}>🩸</div>
-                                    <div style={styles.aiCardContent}>
-                                        <span style={styles.aiCardTitle}>Risque Diabète</span>
-                                        <span style={{...styles.aiCardValue, color: getRiskColor(product.ai_predictions.diabetes_risk)}}>
-                                            {product.ai_predictions.diabetes_risk || 'Inconnu'}
-                                            {product.ai_predictions.diabetes_risk_proba ? ` (${product.ai_predictions.diabetes_risk_proba}%)` : ''}
-                                        </span>
-                                    </div>
-                                </div>
-                                
-                                <div style={styles.aiCard}>
-                                    <div style={styles.aiCardIcon}>🧪</div>
-                                    <div style={styles.aiCardContent}>
-                                        <span style={styles.aiCardTitle}>Exp. Additifs</span>
-                                        <span style={{...styles.aiCardValue, color: getRiskColor(product.ai_predictions.additive_exposure)}}>
-                                            {product.ai_predictions.additive_exposure || 'Inconnu'}
-                                        </span>
-                                    </div>
-                                </div>
+                            )}
 
-                                <div style={styles.aiCard}>
-                                    <div style={styles.aiCardIcon}>🍔</div>
-                                    <div style={styles.aiCardContent}>
-                                        <span style={styles.aiCardTitle}>Ultra-transformé</span>
-                                        <span style={{...styles.aiCardValue, color: product.ai_predictions.ultra_transforme ? '#ef4444' : '#10b981'}}>
-                                            {product.ai_predictions.ultra_transforme ? 'Oui' : 'Non'}
-                                        </span>
-                                    </div>
+                            {/* Risque Diabète */}
+                            <div style={styles.aiCard}>
+                                <div style={styles.aiCardIcon}>🩸</div>
+                                <div style={styles.aiCardContent}>
+                                    <span style={styles.aiCardTitle}>Risque Diabète</span>
+                                    <span style={{ ...styles.aiCardValue, color: getRiskColor(product.ai_predictions?.diabetes_risk) }}>
+                                        {product.ai_predictions?.diabetes_risk || 'Inconnu'}
+                                        {product.ai_predictions?.diabetes_risk_proba != null
+                                            ? ` (${product.ai_predictions.diabetes_risk_proba}%)`
+                                            : ''}
+                                    </span>
                                 </div>
                             </div>
-                        )}
+
+                            {/* Exp. Additifs */}
+                            <div style={styles.aiCard}>
+                                <div style={styles.aiCardIcon}>🧪</div>
+                                <div style={styles.aiCardContent}>
+                                    <span style={styles.aiCardTitle}>Exp. Additifs</span>
+                                    <span style={{
+                                        ...styles.aiCardValue,
+                                        color: getProbaColor(product.ai_predictions?.additive_exposure)
+                                    }}>
+                                        {product.ai_predictions?.additive_exposure != null
+                                            ? `${product.ai_predictions.additive_exposure}%`
+                                            : 'Inconnu'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Ultra-transformé */}
+                            <div style={styles.aiCard}>
+                                <div style={styles.aiCardIcon}>🍔</div>
+                                <div style={styles.aiCardContent}>
+                                    <span style={styles.aiCardTitle}>Ultra-transformé</span>
+                                    <span style={{
+                                        ...styles.aiCardValue,
+                                        color: getProbaColor(product.ai_predictions?.ultra_transforme)
+                                    }}>
+                                        {product.ai_predictions?.ultra_transforme != null
+                                            ? `${product.ai_predictions.ultra_transforme}%`
+                                            : 'Inconnu'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
+
+            {/* Section LLM Analysis */}
+            {hasLLM && (
+                <div style={styles.llmSection}>
+                    <h3 style={styles.llmSectionTitle}>🔬 Analyse LLM Détaillée des Ingrédients</h3>
+
+                    {product.ai_predictions.llm.resume_global && !isIngredientSearch && (
+                        <div style={styles.llmResume}>
+                            <p style={{ margin: 0, color: '#334155', fontSize: '0.95rem' }}>
+                                {product.ai_predictions.llm.resume_global}
+                            </p>
+                            {product.ai_predictions.llm.qualite_globale && (
+                                <div style={{ marginTop: '0.5rem' }}>
+                                    <span style={{
+                                        display: 'inline-block',
+                                        padding: '0.3rem 0.7rem',
+                                        borderRadius: '2rem',
+                                        backgroundColor: getQualityColor(product.ai_predictions.llm.qualite_globale) + '20',
+                                        color: getQualityColor(product.ai_predictions.llm.qualite_globale),
+                                        fontSize: '0.8rem',
+                                        fontWeight: '600',
+                                    }}>
+                                        Qualité : {product.ai_predictions.llm.qualite_globale}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Ingredients Cards */}
+                    <div style={styles.llmIngredientsContainer}>
+                        {product.ai_predictions.llm.ingredients.map((ingredient, idx) => (
+                            <IngredientAnalysisCard key={idx} ingredient={ingredient} />
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <style dangerouslySetInnerHTML={{
                 __html: `
                 @keyframes fadeInUp {
@@ -162,27 +245,51 @@ const ResultatAnalyse = ({ product }) => {
     );
 };
 
+const getQualityColor = (qualite) => {
+    if (!qualite) return '#64748b';
+    const lower = qualite.toLowerCase();
+    if (lower === 'excellente') return '#10b981';
+    if (lower === 'bonne') return '#3b82f6';
+    if (lower === 'modérée') return '#f59e0b';
+    if (lower === 'faible') return '#ef4444';
+    return '#64748b';
+};
+
 const getRiskColor = (risk) => {
     if (!risk) return '#64748b';
     const lowerRisk = risk.toString().toLowerCase();
-    if (lowerRisk === 'low' || lowerRisk === 'faible' || lowerRisk === '0') return '#10b981'; // Green
-    if (lowerRisk === 'medium' || lowerRisk === 'moyen') return '#f59e0b'; // Yellow
-    if (lowerRisk === 'high' || lowerRisk === 'élevé' || lowerRisk === '1') return '#ef4444'; // Red
-    return '#64748b'; // Gray fallback
+    if (lowerRisk === 'low' || lowerRisk === 'faible' || lowerRisk === '0') return '#10b981';
+    if (lowerRisk === 'medium' || lowerRisk === 'moyen') return '#f59e0b';
+    if (lowerRisk === 'high' || lowerRisk === 'élevé' || lowerRisk === '1') return '#ef4444';
+    return '#64748b';
+};
+
+const getProbaColor = (proba) => {
+    if (proba == null) return '#64748b';
+    const val = parseFloat(proba);
+    if (isNaN(val)) return '#64748b';
+    if (val < 30) return '#10b981';
+    if (val < 60) return '#f59e0b';
+    return '#ef4444';
+};
+
+const getNovaBadgeStyle = (novaGroup) => {
+    switch (Number(novaGroup)) {
+        case 1: return { backgroundColor: '#f0fdf4', borderColor: '#86efac', color: '#16a34a' };
+        case 2: return { backgroundColor: '#fefce8', borderColor: '#fde047', color: '#ca8a04' };
+        case 3: return { backgroundColor: '#fff7ed', borderColor: '#fdba74', color: '#ea580c' };
+        case 4: return { backgroundColor: '#fef2f2', borderColor: '#fca5a5', color: '#dc2626' };
+        default: return { backgroundColor: '#eef2ff', borderColor: '#c7d2fe', color: '#4338ca' };
+    }
 };
 
 const getNoveDescription = (novaGroup) => {
     switch (Number(novaGroup)) {
-        case 1:
-            return 'Aliments non transformés';
-        case 2:
-            return 'Ingrédients culinaires transformés';
-        case 3:
-            return 'Produits transformés à consommer occasionnellement';
-        case 4:
-            return 'Produits ultra-transformés à limiter';
-        default:
-            return 'Niveau NOVA inconnu';
+        case 1: return 'Aliments non transformés';
+        case 2: return 'Ingrédients culinaires transformés';
+        case 3: return 'Produits transformés à consommer occasionnellement';
+        case 4: return 'Produits ultra-transformés à limiter';
+        default: return 'Niveau NOVA inconnu';
     }
 };
 
@@ -231,14 +338,25 @@ const styles = {
 
     aiSection: { marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px dashed #cbd5e1' },
     aiSectionHeader: { display: 'flex', justifyContent: 'flex-start', marginBottom: '1rem' },
-    novaBadge: { display: 'inline-flex', flexDirection: 'column', gap: '0.2rem', padding: '0.75rem 1rem', borderRadius: '1rem', backgroundColor: '#eef2ff', border: '1px solid #c7d2fe', color: '#4338ca', fontWeight: '700', maxWidth: 'fit-content' },
-    novaDescription: { fontSize: '0.8rem', color: '#3730a3', fontWeight: '500', marginTop: '0.25rem' },
+    novaBadge: { display: 'inline-flex', flexDirection: 'column', gap: '0.2rem', padding: '0.75rem 1rem', borderRadius: '1rem', border: '1px solid', fontWeight: '700', maxWidth: 'fit-content' },
+    novaDescription: { fontSize: '0.8rem', fontWeight: '500', marginTop: '0.25rem' },
     aiCardsContainer: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1rem', marginTop: '1rem' },
     aiCard: { display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', backgroundColor: '#f8fafc', borderRadius: '1rem', border: '1px solid #e2e8f0', transition: 'transform 0.2s ease', cursor: 'default' },
     aiCardIcon: { fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', backgroundColor: '#ffffff', borderRadius: '50%', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' },
     aiCardContent: { display: 'flex', flexDirection: 'column' },
     aiCardTitle: { fontSize: '0.75rem', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.02em', marginBottom: '0.25rem' },
-    aiCardValue: { fontSize: '1rem', fontWeight: '800' }
+    aiCardValue: { fontSize: '1rem', fontWeight: '800' },
+
+    llmSection: { marginTop: '2rem', paddingTop: '2rem', borderTop: '1px dashed #cbd5e1', width: '100%' },
+    llmSectionTitle: { fontSize: '1.35rem', fontWeight: '800', color: '#0f172a', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' },
+    llmResume: {
+        padding: '1rem',
+        borderRadius: '0.75rem',
+        border: '1px solid #e2e8f0',
+        backgroundColor: '#f0f9ff',
+        marginBottom: '1.5rem'
+    },
+    llmIngredientsContainer: { display: 'flex', flexDirection: 'column', gap: '1.25rem' }
 };
 
 export default ResultatAnalyse;

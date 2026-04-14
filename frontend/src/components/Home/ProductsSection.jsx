@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import ProductCard from './ProductCard';
-import ResultatAnalyseModal from '../modals/ResultatAnalyseModal';
 
 const ProductsSection = ({
   displayProducts = [],
@@ -13,10 +12,10 @@ const ProductsSection = ({
   getScoreColor = () => '#000',
   getRiskColor = () => '#000',
   setSearchQuery = () => { },
-  user = null
+  user = null,
+  onClickCard = () => { }
 }) => {
   const [showAll, setShowAll] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
   const safeSearchQuery = searchQuery ? searchQuery.toString() : '';
 
   const isSearchActive = safeSearchQuery.trim().length > 0;
@@ -50,7 +49,7 @@ const ProductsSection = ({
                     user={user}
                     onFavorite={() => handleAddFavorite(produit)}
                     onComment={() => handleOpenComments(produit)}
-                    onClickCard={(p) => setSelectedProduct(p)}
+                    onClickCard={() => onClickCard(produit)}
                     isFavorite={isFavorite(productId)}
                     averageRating={getAverageRating(productId)}
                     commentCount={getProductComments(productId).length}
@@ -75,14 +74,6 @@ const ProductsSection = ({
           </>
         )}
       </div>
-
-      {/* Rendu conditionnel de la modale d'analyse */}
-      {selectedProduct && (
-        <ResultatAnalyseModal 
-          product={selectedProduct} 
-          onClose={() => setSelectedProduct(null)} 
-        />
-      )}
     </section>
   );
 };

@@ -49,7 +49,6 @@ def get_mock_prediction(key, features=None):
         
     if key == 'cardio_risk_proba':
         risk_score = nutri + (nova * 2) + (e_nums * 1.5)
-        # Convert risk_score to a proba percentage
         proba = min(98.5, max(12.5, risk_score * 4.2 + 10))
         return proba
         
@@ -64,13 +63,21 @@ def get_mock_prediction(key, features=None):
         proba = min(99.0, max(8.0, sugar_indicator * 4.5 + 12))
         return proba
 
+    # --- MODIFIÉ : additive_exposure retourne maintenant un % de probabilité ---
     if key == 'additive_exposure':
-        if e_nums >= 4: return 'High'
-        if e_nums >= 2: return 'Medium'
-        return 'Low'
-        
+        # Conversion du nb d'additifs en score de probabilité d'exposition élevée
+        # 0 additif → ~5%, 2 → ~45%, 4 → ~80%, 6+ → ~95%
+        proba = min(97.0, max(5.0, e_nums * 18.0 + 5.0))
+        return round(proba, 1)
+
+    # --- MODIFIÉ : ultra_transforme retourne maintenant un % de probabilité ---
     if key == 'ultra_transforme':
-        return 1 if nova >= 4 else 0
+        # NOVA 4 → forte probabilité, NOVA 1 → faible probabilité
+        nova_map = {1: 8.0, 2: 25.0, 3: 58.0, 4: 92.0}
+        proba = nova_map.get(int(nova), 50.0)
+        # Affiner avec le nombre d'additifs
+        proba = min(97.0, max(3.0, proba + (e_nums * 1.5)))
+        return round(proba, 1)
         
     if key == 'additifs_suspects':
         return int(min(e_nums, 5))
@@ -79,7 +86,6 @@ def get_mock_prediction(key, features=None):
 
 def main():
     try:
-        # Read JSON string from stdin
         input_data = sys.stdin.read()
         if not input_data:
             print(json.dumps({"error": "No input provided"}))
@@ -87,7 +93,6 @@ def main():
             
         data = json.loads(input_data)
         
-        # Prepare DataFrame using specified features
         features = {
             'nb_ingredients': float(data.get('nb_ingredients', 0) or 0),
             'contains_preservatives': float(data.get('contains_preservatives', 0) or 0),
@@ -106,7 +111,6 @@ def main():
         
         predictions = {}
         
-        # Model mapping
         model_files = {
             'bioscore': 'bioscore_model.joblib',
             'cardio_risk': 'cardio_risk_model.joblib',
@@ -122,18 +126,38 @@ def main():
                 try:
                     model = joblib.load(filepath)
                     pred = model.predict(df)[0]
-                    # Conversion to standard types for JSON serialization
                     if hasattr(pred, 'item'):
                         pred = pred.item()
-                    predictions[key] = pred
-                    
-                    # Extract probabilities for risk models
-                    if key in ['cardio_risk', 'diabetes_risk'] and hasattr(model, 'predict_proba'):
-                        proba_array = model.predict_proba(df)[0]
-                        max_proba = max(proba_array)
-                        predictions[f'{key}_proba'] = round(max_proba * 100, 1)
+
+                    # --- MODIFIÉ : pour additive_exposure et ultra_transforme,
+                    #     on utilise predict_proba si disponible, sinon mock ---
+                    if key == 'additive_exposure':
+                        if hasattr(model, 'predict_proba'):
+                            proba_array = model.predict_proba(df)[0]
+                            # Probabilité de la classe "High" (dernière classe)
+                            predictions[key] = round(float(max(proba_array)) * 100, 1)
+                        else:
+                            predictions[key] = get_mock_prediction(key, features)
+
+                    elif key == 'ultra_transforme':
+                        if hasattr(model, 'predict_proba'):
+                            proba_array = model.predict_proba(df)[0]
+                            # Probabilité de la classe positive (ultra-transformé = 1)
+                            classes = list(model.classes_)
+                            pos_idx = classes.index(1) if 1 in classes else -1
+                            proba = proba_array[pos_idx] if pos_idx >= 0 else max(proba_array)
+                            predictions[key] = round(float(proba) * 100, 1)
+                        else:
+                            predictions[key] = get_mock_prediction(key, features)
+
+                    else:
+                        predictions[key] = pred
+                        # Probas pour risques cardio/diabète
+                        if key in ['cardio_risk', 'diabetes_risk'] and hasattr(model, 'predict_proba'):
+                            proba_array = model.predict_proba(df)[0]
+                            predictions[f'{key}_proba'] = round(float(max(proba_array)) * 100, 1)
+
                 except Exception as e:
-                    # If model loading fails due to scikit-learn version mismatch, use mock
                     sys.stderr.write(f"Exception for {filename}: {str(e)}\n")
                     predictions[key] = get_mock_prediction(key, features)
                     if key in ['cardio_risk', 'diabetes_risk']:
@@ -143,7 +167,6 @@ def main():
                 if key in ['cardio_risk', 'diabetes_risk']:
                     predictions[f'{key}_proba'] = round(get_mock_prediction(f'{key}_proba', features), 1)
 
-        # Inclure explicitement le groupe NOVA dans la sortie pour une source de vérité unique
         try:
             predictions['nova_group'] = int(max(1, min(4, features.get('nova_group', 1))))
         except Exception:

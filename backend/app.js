@@ -48,6 +48,7 @@ app.use('/api/notifications', require('./routes/notification.routes'));
 app.use('/api/messages', require('./routes/message.routes'));
 app.use('/api/dashboard', require('./routes/dashboard.routes'));
 app.use('/api/analyses', require('./routes/analyse.routes'));
+app.use('/api/chatbot', require('./routes/chatbot.routes'));
 // Middleware global d'erreurs
 app.use((err, req, res, next) => {
     console.error(err.stack);

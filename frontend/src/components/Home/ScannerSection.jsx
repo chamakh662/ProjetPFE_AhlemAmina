@@ -2,9 +2,46 @@
 import React, { useState } from 'react';
 import ResultatAnalyse from '../Shared/ResultatAnalyse';
 
-const ScannerSection = ({ barcode, setBarcode, handleBarcodeScan, scannedProduct, scanError }) => {
+const ScannerSection = ({ barcode, setBarcode, handleBarcodeScan, scannedProduct, scanError, onResetProduct }) => {
     const [focused, setFocused] = useState(false);
 
+    // Si un produit est sélectionné → affichage détail pleine largeur
+    if (scannedProduct) {
+        return (
+            <section id="scanner" style={styles.section}>
+                <div style={styles.bgBlobs}>
+                    <div style={styles.blob1} />
+                    <div style={styles.blob2} />
+                </div>
+
+                <div style={styles.container}>
+                    {/* Bouton retour */}
+                    <button
+                        onClick={onResetProduct}
+                        style={styles.backBtn}
+                    >
+                        <span style={styles.backArrow}>←</span>
+                        Retour à l'analyseur
+                    </button>
+
+                    {/* Détail produit en pleine largeur */}
+                    <div style={{ animation: 'fadeInUp 0.45s ease forwards' }}>
+                        <ResultatAnalyse product={scannedProduct} />
+                    </div>
+                </div>
+
+                <style dangerouslySetInnerHTML={{
+                    __html: `
+                    @keyframes fadeInUp {
+                        from { opacity: 0; transform: translateY(24px); }
+                        to   { opacity: 1; transform: translateY(0); }
+                    }
+                `}} />
+            </section>
+        );
+    }
+
+    // Sinon → affichage normal avec grille + vidéo
     return (
         <section id="scanner" style={styles.section}>
             {/* Décoration de fond moderne */}
@@ -41,7 +78,7 @@ const ScannerSection = ({ barcode, setBarcode, handleBarcodeScan, scannedProduct
                                     }}
                                     onFocus={() => setFocused(true)}
                                     onBlur={() => setFocused(false)}
-                                    placeholder="Scannez ou tapez un code-barres (13 chiffres)..."
+                                    placeholder="Tapez le code-barres de votre produit"
                                     style={styles.input}
                                     maxLength={13}
                                 />
@@ -69,18 +106,12 @@ const ScannerSection = ({ barcode, setBarcode, handleBarcodeScan, scannedProduct
                                 </div>
                             )}
                         </div>
-
-                        {/* État : Résultat de l'Analyse */}
-                        {scannedProduct && (
-                            <ResultatAnalyse product={scannedProduct} />
-                        )}
                     </div>
 
-                    {/* COLONNE DROITE : Background animé (vidéo ou image) */}
+                    {/* COLONNE DROITE : Background animé */}
                     <div style={styles.rightColumn}>
                         <div style={styles.animatedBackgroundCard}>
                             <div style={styles.mediaWrapper}>
-                                {/* Vidéo de démonstration (personne qui scanne) */}
                                 <video
                                     autoPlay
                                     loop
@@ -88,10 +119,8 @@ const ScannerSection = ({ barcode, setBarcode, handleBarcodeScan, scannedProduct
                                     playsInline
                                     src="/scan-demo.mp4"
                                     style={styles.demoVideo}
-                                    poster="/scan-poster.jpg" // Image de fallback si la vidéo ne charge pas
+                                    poster="/scan-poster.jpg"
                                 />
-
-                                {/* Overlay avec texte explicatif */}
                                 <div style={styles.mediaOverlay}>
                                     <div style={styles.scanAnimationIcon}>
                                         <span style={styles.scanIcon}>📱</span>
@@ -102,43 +131,18 @@ const ScannerSection = ({ barcode, setBarcode, handleBarcodeScan, scannedProduct
                                     </p>
                                 </div>
                             </div>
-
-                            {/* Option alternative si vous préférez une image animée GIF */}
-                            {/* 
-                            <div style={styles.mediaWrapper}>
-                                <img 
-                                    src="/scan-animation.gif" 
-                                    alt="Personne scannant un produit avec son téléphone"
-                                    style={styles.demoImage}
-                                />
-                                <div style={styles.mediaOverlay}>
-                                    <p style={styles.mediaText}>
-                                        Scannez n'importe quel produit avec votre smartphone
-                                    </p>
-                                </div>
-                            </div>
-                            */}
                         </div>
                     </div>
 
                 </div>
             </div>
 
-            {/* Ajout des animations CSS globales */}
             <style dangerouslySetInnerHTML={{
                 __html: `
                 @keyframes scanLineMove {
-                    0% {
-                        transform: translateY(-100%);
-                        opacity: 0;
-                    }
-                    50% {
-                        opacity: 1;
-                    }
-                    100% {
-                        transform: translateY(100%);
-                        opacity: 0;
-                    }
+                    0%   { transform: translateY(-100%); opacity: 0; }
+                    50%  { opacity: 1; }
+                    100% { transform: translateY(100%);  opacity: 0; }
                 }
             `}} />
         </section>
@@ -184,7 +188,29 @@ const styles = {
         width: '100%'
     },
 
-    /* Différenciation des 2 colonnes */
+    // ── Bouton retour ──────────────────────────────────────────────────────────
+    backBtn: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        marginBottom: '2rem',
+        padding: '0.6rem 1.25rem',
+        backgroundColor: '#fff',
+        color: '#1e293b',
+        border: '1px solid #e2e8f0',
+        borderRadius: '100px',
+        fontSize: '0.95rem',
+        fontWeight: '600',
+        cursor: 'pointer',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        transition: 'all 0.2s ease',
+    },
+    backArrow: {
+        fontSize: '1.1rem',
+        lineHeight: 1,
+    },
+
+    // ── Grille deux colonnes ───────────────────────────────────────────────────
     twoColumns: {
         display: 'flex',
         flexWrap: 'wrap',
@@ -204,7 +230,7 @@ const styles = {
         alignItems: 'center'
     },
 
-    /* Header Gauche */
+    // ── Header ────────────────────────────────────────────────────────────────
     header: { textAlign: 'left', marginBottom: '2rem' },
     badge: {
         display: 'inline-block',
@@ -232,7 +258,7 @@ const styles = {
         lineHeight: 1.6,
     },
 
-    /* Scanner Interface (Gauche) */
+    // ── Scanner ───────────────────────────────────────────────────────────────
     scannerInterface: {
         width: '100%',
         display: 'flex',
@@ -256,7 +282,6 @@ const styles = {
         fontSize: '1rem', whiteSpace: 'nowrap', boxShadow: '0 4px 14px rgba(22,163,74,0.3)',
         transition: 'all 0.2s',
     },
-
     errorBox: {
         display: 'flex', alignItems: 'center', gap: '1rem',
         backgroundColor: '#fef2f2', borderLeft: '4px solid #ef4444',
@@ -266,9 +291,7 @@ const styles = {
     errorTitle: { margin: '0 0 0.25rem 0', color: '#991b1b', fontSize: '1rem', fontWeight: '700' },
     errorText: { margin: 0, color: '#b91c1c', fontSize: '0.9rem' },
 
-
-
-    /* Colonne Droite - Background animé */
+    // ── Colonne droite ────────────────────────────────────────────────────────
     animatedBackgroundCard: {
         width: '100%',
         maxWidth: '500px',
@@ -281,31 +304,19 @@ const styles = {
     mediaWrapper: {
         position: 'relative',
         width: '100%',
-        paddingTop: '75%', // Ratio 4:3 pour une meilleure visualisation
+        paddingTop: '75%',
         overflow: 'hidden',
         backgroundColor: '#1a1a1a',
     },
     demoVideo: {
         position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        objectFit: 'cover',
-    },
-    demoImage: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
+        top: 0, left: 0,
+        width: '100%', height: '100%',
         objectFit: 'cover',
     },
     mediaOverlay: {
         position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
+        bottom: 0, left: 0, right: 0,
         background: 'linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0))',
         padding: '2rem 1.5rem 1.5rem 1.5rem',
         display: 'flex',
@@ -315,24 +326,17 @@ const styles = {
     },
     scanAnimationIcon: {
         position: 'relative',
-        width: '60px',
-        height: '60px',
+        width: '60px', height: '60px',
         backgroundColor: 'rgba(255,255,255,0.2)',
         borderRadius: '50%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
         backdropFilter: 'blur(10px)',
         overflow: 'hidden',
     },
-    scanIcon: {
-        fontSize: '2rem',
-        zIndex: 2,
-    },
+    scanIcon: { fontSize: '2rem', zIndex: 2 },
     scanLine: {
         position: 'absolute',
-        width: '100%',
-        height: '2px',
+        width: '100%', height: '2px',
         backgroundColor: '#16a34a',
         animation: 'scanLineMove 2s ease-in-out infinite',
         boxShadow: '0 0 10px #16a34a',
