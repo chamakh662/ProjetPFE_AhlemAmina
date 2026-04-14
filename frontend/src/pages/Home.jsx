@@ -106,6 +106,7 @@ const Home = () => {
       setIngredientResult(null);
       setSelectedProduct(null);
       setSelectedSearchProduct(null);
+      console.log("searchQuery", searchQuery);
     }
   }, [searchQuery, allProducts]);
 
@@ -113,6 +114,7 @@ const Home = () => {
   const handleSearch = async (e) => {
     e.preventDefault();
     const query = searchQuery.trim();
+    console.log(query);
 
     if (!query) {
       setDisplayProducts(allProducts);
@@ -130,6 +132,7 @@ const Home = () => {
         );
         if (!response.ok) throw new Error('Erreur serveur OCR/NLP');
         const results = await response.json();
+        console.log(results);
 
         if (Array.isArray(results)) {
           setDisplayProducts(results);
@@ -174,7 +177,7 @@ const Home = () => {
         const estimatedNutri = nbIngs * 3 + eNumbers * 5;
 
         const aiResponse = await fetch(
-          'http://localhost:5000/api/analyses/predict-ingredients-llm',
+          'http://localhost:5000/api/analyses/predict',
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
