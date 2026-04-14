@@ -103,49 +103,51 @@ const ResultatAnalyse = ({ product }) => {
                                 </span>
                             </span>
                         </div>
-                        <div style={styles.aiCardsContainer}>
-                            <div style={styles.aiCard}>
-                                <div style={styles.aiCardIcon}>🫀</div>
-                                <div style={styles.aiCardContent}>
-                                    <span style={styles.aiCardTitle}>Risque Cardio</span>
-                                    <span style={{...styles.aiCardValue, color: getRiskColor(product.ai_predictions.cardio_risk)}}>
-                                        {product.ai_predictions.cardio_risk || 'Inconnu'}
-                                        {product.ai_predictions.cardio_risk_proba ? ` (${product.ai_predictions.cardio_risk_proba}%)` : ''}
-                                    </span>
+                        {product.ai_predictions && Object.keys(product.ai_predictions).length > 0 && (
+                            <div style={styles.aiCardsContainer}>
+                                <div style={styles.aiCard}>
+                                    <div style={styles.aiCardIcon}>🫀</div>
+                                    <div style={styles.aiCardContent}>
+                                        <span style={styles.aiCardTitle}>Risque Cardio</span>
+                                        <span style={{...styles.aiCardValue, color: getRiskColor(product.ai_predictions.cardio_risk)}}>
+                                            {product.ai_predictions.cardio_risk || 'Inconnu'}
+                                            {product.ai_predictions.cardio_risk_proba ? ` (${product.ai_predictions.cardio_risk_proba}%)` : ''}
+                                        </span>
+                                    </div>
                                 </div>
-                            </div>
-                            
-                            <div style={styles.aiCard}>
-                                <div style={styles.aiCardIcon}>🩸</div>
-                                <div style={styles.aiCardContent}>
-                                    <span style={styles.aiCardTitle}>Risque Diabète</span>
-                                    <span style={{...styles.aiCardValue, color: getRiskColor(product.ai_predictions.diabetes_risk)}}>
-                                        {product.ai_predictions.diabetes_risk || 'Inconnu'}
-                                        {product.ai_predictions.diabetes_risk_proba ? ` (${product.ai_predictions.diabetes_risk_proba}%)` : ''}
-                                    </span>
+                                
+                                <div style={styles.aiCard}>
+                                    <div style={styles.aiCardIcon}>🩸</div>
+                                    <div style={styles.aiCardContent}>
+                                        <span style={styles.aiCardTitle}>Risque Diabète</span>
+                                        <span style={{...styles.aiCardValue, color: getRiskColor(product.ai_predictions.diabetes_risk)}}>
+                                            {product.ai_predictions.diabetes_risk || 'Inconnu'}
+                                            {product.ai_predictions.diabetes_risk_proba ? ` (${product.ai_predictions.diabetes_risk_proba}%)` : ''}
+                                        </span>
+                                    </div>
                                 </div>
-                            </div>
-                            
-                            <div style={styles.aiCard}>
-                                <div style={styles.aiCardIcon}>🧪</div>
-                                <div style={styles.aiCardContent}>
-                                    <span style={styles.aiCardTitle}>Exp. Additifs</span>
-                                    <span style={{...styles.aiCardValue, color: getRiskColor(product.ai_predictions.additive_exposure)}}>
-                                        {product.ai_predictions.additive_exposure || 'Inconnu'}
-                                    </span>
+                                
+                                <div style={styles.aiCard}>
+                                    <div style={styles.aiCardIcon}>🧪</div>
+                                    <div style={styles.aiCardContent}>
+                                        <span style={styles.aiCardTitle}>Exp. Additifs</span>
+                                        <span style={{...styles.aiCardValue, color: getRiskColor(product.ai_predictions.additive_exposure)}}>
+                                            {product.ai_predictions.additive_exposure || 'Inconnu'}
+                                        </span>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div style={styles.aiCard}>
-                                <div style={styles.aiCardIcon}>🍔</div>
-                                <div style={styles.aiCardContent}>
-                                    <span style={styles.aiCardTitle}>Ultra-transformé</span>
-                                    <span style={{...styles.aiCardValue, color: product.ai_predictions.ultra_transforme ? '#ef4444' : '#10b981'}}>
-                                        {product.ai_predictions.ultra_transforme ? 'Oui' : 'Non'}
-                                    </span>
+                                <div style={styles.aiCard}>
+                                    <div style={styles.aiCardIcon}>🍔</div>
+                                    <div style={styles.aiCardContent}>
+                                        <span style={styles.aiCardTitle}>Ultra-transformé</span>
+                                        <span style={{...styles.aiCardValue, color: product.ai_predictions.ultra_transforme ? '#ef4444' : '#10b981'}}>
+                                            {product.ai_predictions.ultra_transforme ? 'Oui' : 'Non'}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
                     </div>
                 )}
             </div>
