@@ -50,8 +50,9 @@ const ResultatAnalyse = ({ product, isIngredientSearch = false }) => {
                 <div style={styles.reportHeader}>
                     <div style={styles.brandTag}>{marque}</div>
                     <h3 style={styles.reportTitle}>{product.nom}</h3>
-                    {!isIngredientSearch && (
-                        <p style={styles.reportOrigin}>📍 Origine : <strong>{origin}</strong></p>
+                    <p style={styles.reportOrigin}>📍 Origine : <strong>{origin}</strong></p>
+                    {product.ai_predictions?.llm?.qualite_globale && (
+                        <p style={styles.reportOrigin}>📂 Catégorie qualité : <strong>{product.ai_predictions.llm.qualite_globale}</strong></p>
                     )}
                     {barcode && (
                         <p style={styles.reportBarcode}>🏷️ Code-barres : <strong>{barcode}</strong></p>
@@ -132,20 +133,18 @@ const ResultatAnalyse = ({ product, isIngredientSearch = false }) => {
                             )}
 
                             {/* Risque Cardio */}
-                            {!isIngredientSearch && (
-                                <div style={styles.aiCard}>
-                                    <div style={styles.aiCardIcon}>🫀</div>
-                                    <div style={styles.aiCardContent}>
-                                        <span style={styles.aiCardTitle}>Risque Cardio</span>
-                                        <span style={{ ...styles.aiCardValue, color: getRiskColor(product.ai_predictions?.cardio_risk) }}>
-                                            {product.ai_predictions?.cardio_risk || 'Inconnu'}
-                                            {product.ai_predictions?.cardio_risk_proba != null
-                                                ? ` (${product.ai_predictions.cardio_risk_proba}%)`
-                                                : ''}
-                                        </span>
-                                    </div>
+                            <div style={styles.aiCard}>
+                                <div style={styles.aiCardIcon}>🫀</div>
+                                <div style={styles.aiCardContent}>
+                                    <span style={styles.aiCardTitle}>Risque Cardio</span>
+                                    <span style={{ ...styles.aiCardValue, color: getRiskColor(product.ai_predictions?.cardio_risk) }}>
+                                        {product.ai_predictions?.cardio_risk || 'Inconnu'}
+                                        {product.ai_predictions?.cardio_risk_proba != null
+                                            ? ` (${product.ai_predictions.cardio_risk_proba}%)`
+                                            : ''}
+                                    </span>
                                 </div>
-                            )}
+                            </div>
 
                             {/* Risque Diabète */}
                             <div style={styles.aiCard}>
@@ -202,7 +201,7 @@ const ResultatAnalyse = ({ product, isIngredientSearch = false }) => {
                 <div style={styles.llmSection}>
                     <h3 style={styles.llmSectionTitle}>🔬 Analyse LLM Détaillée des Ingrédients</h3>
 
-                    {product.ai_predictions.llm.resume_global && !isIngredientSearch && (
+                    {product.ai_predictions.llm.resume_global && (
                         <div style={styles.llmResume}>
                             <p style={{ margin: 0, color: '#334155', fontSize: '0.95rem' }}>
                                 {product.ai_predictions.llm.resume_global}

@@ -177,7 +177,7 @@ const Home = () => {
         const estimatedNutri = nbIngs * 3 + eNumbers * 5;
 
         const aiResponse = await fetch(
-          'http://localhost:5000/api/analyses/predict',
+          'http://localhost:5000/api/analyses/predict-ingredients-llm',
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

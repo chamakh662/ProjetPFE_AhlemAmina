@@ -175,7 +175,7 @@ const IngredientAnalysisCard = ({ ingredient }) => {
             <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#64748b', marginBottom: '0.3rem' }}>
               DANGEROSITÉ
             </div>
-            <DangerBadge dangerosité={ingredient.dangerosité || 'Modérée'} />
+            <DangerBadge dangerosité={ingredient.dangerosité || ingredient.dangerosite || 'Modérée'} />
         </div>
       </div>
 
